@@ -974,11 +974,27 @@ var PSEC=[
   ['top','المتميزون والأوائل',1],['tch','المعلمون',1],['plan','الالتزام بخطط الحفظ',1],['chal','التحديات والفرص',1],
   ['rec','التوصيات والخطوات القادمة',1],['end','الشكر والختام',1]
 ];
+var RSEC=[
+  ['cover','صفحة الغلاف',1],['toc','فهرس المحتويات',1],['intro','مقدمة وتعريف بالبرنامج',1],['exec','الملخص التنفيذي',1],
+  ['method','مصدر البيانات وطريقة الاحتساب',1],['kpi','المؤشرات الرئيسة',1],['hifz','الحفظ والمراجعة',1],['att','الحضور والانتظام',1],
+  ['grades','مستويات الأداء في التسميع',1],['exam','الاختبارات',1],['ach','الإنجازات',1],['top','المتميزون والأوائل',1],
+  ['tch','المعلمون',1],['plan','الالتزام بخطط الحفظ',1],['chal','التحديات والملاحظات',1],['rec','التوصيات',1],
+  ['end','الخاتمة',1],['sign','الاعتماد والتوقيع',1],['apx','ملحق: بيانات الطلاب تفصيليًا',1]
+];
+var XSEC=[
+  ['cover','الغلاف',1],['about','من نحن',1],['impact','الأثر بالأرقام',1],['journey','رحلة الحفظ',1],['att','الانتظام والحضور',1],
+  ['hal','حلقاتنا',1],['ach','الإنجازات',1],['stars','المتميزون',1],['story','قصة نجاح',1],['exam','جودة الحفظ (الاختبارات)',1],
+  ['tch','الكادر التعليمي',1],['gallery','معرض الصور',1],['voices','كلمات وشهادات',1],['next','التطلعات وفرص الدعم',1],
+  ['thanks','شكر الداعمين',1],['contact','التواصل',1]
+];
 var PR=null;
+function prSecs(){ return PR.mode==='pro' ? XSEC : PR.mode==='report' ? RSEC : PSEC; }
+function prSecObj(){ return PR.mode==='pro' ? PR.xsec : PR.mode==='report' ? PR.rsec : PR.sec; }
+function prSecKey(){ return PR.mode==='pro' ? 'xsec' : PR.mode==='report' ? 'rsec' : 'sec'; }
 function openPres(from){
   ensureRep(function(){
-    if(!PR){ PR={ range:'1m', from:'', to:'', hs:{}, all:true, title:'تقرير منجزات حلقات القرآن الكريم', org:'', aud:'الجهة المشرفة على البرنامج',
-                  by:S.teacher||'', extra:'', sec:{} }; PSEC.forEach(function(x){ PR.sec[x[0]]=!!x[2]; }); }
+    if(!PR){ PR={ mode:'pro', range:'1m', from:'', to:'', hs:{}, all:true, title:'تقرير منجزات حلقات القرآن الكريم', org:'', aud:'الجهة المشرفة على البرنامج',
+                  by:S.teacher||'', extra:'', sec:{}, rsec:{}, xsec:{} }; PSEC.forEach(function(x){ PR.sec[x[0]]=!!x[2]; }); RSEC.forEach(function(x){ PR.rsec[x[0]]=!!x[2]; }); XSEC.forEach(function(x){ PR.xsec[x[0]]=!!x[2]; }); }
     PR.back=from; showPres();
   });
 }
@@ -994,9 +1010,14 @@ function presRange(){
   return [from,t2];
 }
 function showPres(){
-  header('مادة العرض التقديمي','نص جاهز لبرامج الذكاء الاصطناعي', function(){ PR.back==='adm'?showAdmin():showReports(false); }); actions('');
+  header('تقرير المنجزات','نص جاهز لبرامج الذكاء الاصطناعي', function(){ PR.back==='adm'?showAdmin():showReports(false); }); actions('');
   var hs=R.hs, h='<div class="narrow">';
-  h+='<div class="note info">اختر الفترة والحلقات والأقسام، ثم انسخ النص وأعطه أي برنامج ذكاء اصطناعي مع شعار الجهة وهويتها البصرية، فيُنشئ العرض. الأصل: آخر شهر، لكل الحلقات، بكل الأقسام.</div>';
+  h+='<div class="block"><h2>نوع المادة</h2><div class="seg" style="flex-wrap:wrap">'
+    +[['pro','✨ تقرير احترافي مصوّر'],['report','📄 تقرير مكتوب مفصّل'],['slides','📊 عرض للإلقاء']].map(function(o){ return '<button class="'+(PR.mode===o[0]?'on':'')+'" onclick="PR.mode=\''+o[0]+'\';showPres()">'+o[1]+'</button>'; }).join('')+'</div>'
+    +'<div class="muted" style="font-size:13px;margin-top:6px">'+({pro:'تقرير بالعرض بتصميم احترافي كتقارير الجهات المانحة والجمعيات: أرقام كبيرة وإنفوجرافيك وصور وقصة نجاح، يُطبع ويُقدَّم للجهات.',
+      report:'تقرير رسمي مكتوب بفقرات وجداول وملاحق وتوقيعات، لصفحات A4 تُرفع للأرشيف والجهة المسؤولة.',
+      slides:'شرائح مختصرة للعرض على الشاشة في اجتماع، مع ملاحظات للمتحدث.'})[PR.mode]+'</div></div>';
+  h+='<div class="note info">اختر الفترة والحلقات والأقسام، ثم انسخ النص وأعطه أي برنامج ذكاء اصطناعي مع شعار الجهة وهويتها البصرية. الأصل: آخر شهر، لكل الحلقات، بكل الأقسام.</div>';
   h+='<div class="block"><h2>الفترة</h2><div class="chips">'+[['2w','آخر أسبوعين'],['1m','آخر شهر'],['2m','آخر شهرين'],['3m','آخر 3 أشهر'],['all','منذ بداية البرنامج'],['custom','تحديد المدة']].map(function(o){
       return '<button class="chip'+(PR.range===o[0]?' on':'')+'" onclick="PR.range=\''+o[0]+'\';showPres()">'+o[1]+'</button>'; }).join('')+'</div>';
   if(PR.range==='custom') h+='<div class="frow"><div class="field"><label>من</label><input type="date" value="'+PR.from+'" onchange="PR.from=this.value;showPres()"></div><div class="field"><label>إلى</label><input type="date" value="'+PR.to+'" onchange="PR.to=this.value;showPres()"></div></div>';
@@ -1008,18 +1029,367 @@ function showPres(){
     +'<div class="field"><label>اسم البرنامج أو الجهة المنفذة</label><input type="text" value="'+esc(PR.org)+'" placeholder="مثال: حلقات القرآن الكريم — المعهد" oninput="PR.org=this.value;prRender()"></div>'
     +'<div class="field"><label>الفئة المستهدفة (مقدَّم إلى)</label><input type="text" value="'+esc(PR.aud)+'" oninput="PR.aud=this.value;prRender()"></div>'
     +'<div class="field"><label>إعداد</label><input type="text" value="'+esc(PR.by)+'" oninput="PR.by=this.value;prRender()"></div></div>';
-  h+='<div class="block"><h2>أقسام العرض</h2><div class="prsec">'+PSEC.map(function(x){ return '<label><input type="checkbox"'+(PR.sec[x[0]]?' checked':'')+' onchange="PR.sec[\''+x[0]+'\']=this.checked;prRender()">'+x[1]+'</label>'; }).join('')+'</div></div>';
+  var SS=prSecObj(), SK=prSecKey();
+  h+='<div class="block"><h2>'+(PR.mode==='slides'?'أقسام العرض':'أقسام التقرير')+'</h2><div class="prsec">'+prSecs().map(function(x){ return '<label><input type="checkbox"'+(SS[x[0]]?' checked':'')+' onchange="PR.'+SK+'[\''+x[0]+'\']=this.checked;prRender()">'+x[1]+'</label>'; }).join('')+'</div></div>';
   h+='<div class="block"><h2>إضافات يدوية <span class="muted" style="font-size:13px;font-weight:400">(اختياري)</span></h2><textarea rows="3" placeholder="منجزات أو ملاحظات تريد إضافتها بنفسك (تظهر في شريحة مستقلة)" oninput="PR.extra=this.value;prRender()">'+esc(PR.extra)+'</textarea></div>';
   h+='<div class="block"><h2>النص الجاهز</h2><textarea id="prout" readonly></textarea>'
     +'<div class="tbtns"><button class="main" onclick="copyText(\'prout\')">📋 نسخ النص</button><button onclick="prDownload()">⬇️ تنزيل ملف .md</button></div></div></div>';
   app(h); prRender();
 }
 function prRender(){ var el=$('prout'); if(el) el.value=presMarkdown(); }
+function presMarkdown(){ return PR.mode==='pro' ? proMarkdown() : PR.mode==='report' ? reportMarkdown() : slidesMarkdown(); }
 function prDownload(){
-  try{ var b=new Blob([presMarkdown()],{type:'text/markdown;charset=utf-8'}), a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='مادة_العرض_التقديمي.md'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500); }
+  try{ var b=new Blob([presMarkdown()],{type:'text/markdown;charset=utf-8'}), a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=({pro:'تقرير_احترافي_مصور',report:'تقرير_المنجزات',slides:'مادة_العرض_التقديمي'})[PR.mode]+'.md'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500); }
   catch(e){ toast('تعذّر التنزيل — استخدم النسخ','err'); }
 }
-function presMarkdown(){
+/* بيانات الفترة المشتركة بين التقرير والعرض */
+function presData(withPlans){
+  var W=presRange(), F0=R.f; R.f=Object.assign({},F0,{h:-1,srb:'',q:''});
+  var C=compute(false,W), CC=null; if(withPlans && Q){ var F1=R.f; R.f=Object.assign({},F1,{period:'all'}); CC=compute(false); R.f=F1; } R.f=F0;
+  var sel=function(h){ return PR.all || !!PR.hs[h]; };
+  var L=C.list.filter(function(a){ return sel(a.s.h); }), hsSel=R.hs.filter(sel);
+  var inW=function(ds){ var d=pd(ds); return d && d>=W[0] && d<=W[1]; };
+  var T={pres:0,abs:0,ph:0,pr:0,gs:0,gc:0}; L.forEach(function(a){ T.pres+=a.pres; T.abs+=a.abs; T.ph+=a.ph; T.pr+=a.pr; a.gs.forEach(function(g){ T.gs+=g; T.gc++; }); });
+  var recs=R.raw.records.filter(function(r){ return sel(r.h) && inW(r.date); });
+  var dates={}; recs.forEach(function(r){ dates[r.date]=1; });
+  var tDays={}, tHal={}; R.raw.days.forEach(function(d){ if(d.t && sel(d.h) && inW(d.date)){ tDays[d.t]=(tDays[d.t]||0)+1; (tHal[d.t]=tHal[d.t]||{})[d.h]=1; } });
+  var ev=((R.raw.ach&&R.raw.ach.events)||[]).filter(function(e){ return sel(e.h) && inW(e.date); });
+  var byH={}; hsSel.forEach(function(n){ var X=L.filter(function(a){ return a.s.h===n; }), o={n:n,st:X.length,ph:0,pr:0,p:0,b:0,gs:0,gc:0};
+    X.forEach(function(a){ o.ph+=a.ph; o.pr+=a.pr; o.p+=a.pres; o.b+=a.abs; a.gs.forEach(function(x){ o.gs+=x; o.gc++; }); }); byH[n]=o; });
+  var wds={}; Object.keys(dates).forEach(function(ds){ var dd=pd(ds); try{ wds[dd.getDay()]=new Intl.DateTimeFormat('ar-SA',{weekday:'long'}).format(dd); }catch(e){} });
+  return { W:W, C:C, CC:CC, sel:sel, L:L, hsSel:hsSel, T:T, att:(T.pres+T.abs)?T.pres/(T.pres+T.abs):null, avg:T.gc?T.gs/T.gc:null,
+    nDays:Object.keys(dates).length, tDays:tDays, tHal:tHal, tList:Object.keys(tDays).sort(function(a,b){ return tDays[b]-tDays[a]; }),
+    nSt:R.raw.students.filter(function(s){ return sel(s.h); }).length, ev:ev, evS:ev.filter(function(e){ return e.type!=='juz'; }), evJ:ev.filter(function(e){ return e.type==='juz'; }),
+    byH:byH, wds:Object.keys(wds).map(Number).sort(function(a,b){ return a-b; }).map(function(k){ return wds[k]; }) };
+}
+
+/* ══ التقرير الاحترافي المصوّر (بالعرض، كتقارير الجهات المانحة) ══ */
+function proMarkdown(){
+  var D=presData(PR.xsec.next), X=PR.xsec, W=D.W, L=D.L, T=D.T;
+  var f=function(d){ return hfmt(d,{day:'numeric',month:'long',year:'numeric'}); }, g=function(d){ return iso(d).replace(/-/g,'/'); };
+  var ex=L.filter(function(a){ return a.exAvg!=null; }), exAvg=ex.length?ex.reduce(function(t,a){ return t+a.exAvg; },0)/ex.length:null;
+  var top=L.filter(function(a){ return a.total>0; }).sort(function(x,y){ return y.total-x.total; });
+  var cnt2=function(k){ return L.filter(function(a){ return a.b.indexOf(k)>-1; }).length; };
+  var juz=T.ph/20, o=[], pg=0;
+  var P=function(t,layout){ pg++; o.push('## '+t); if(layout) o.push('*التخطيط: '+layout+'*'); };
+  o.push('# تعليمات إنشاء التقرير الاحترافي');
+  o.push('');
+  o.push('> هذا النص مادة **تقرير أثر احترافي مصوّر** عن حلقات القرآن الكريم، من نوع التقارير التي تُقدَّم للجهات المانحة والداعمين والمسؤولين: يُصمَّم كعرض تقديمي فاخر ثم يُطبع ويُسلَّم. المطلوب منك (برنامج الذكاء الاصطناعي):');
+  o.push('');
+  o.push('1. **الشكل:** صفحات بالعرض (16:9 أو A4 أفقي)، **كل عنوان (##) صفحة مستقلة**، بتصميم احترافي حديث مثل تقارير الأثر للجمعيات والمؤسسات المانحة. اتجاه عربي من اليمين لليسار.');
+  o.push('2. **رسالة واحدة لكل صفحة:** نص قليل، **أرقام كبيرة بارزة**، أيقونات موحّدة، إنفوجرافيك، ومساحات بيضاء مريحة. لا تتجاوز الفقرة الواحدة ثلاثة أسطر.');
+  o.push('3. **الهوية البصرية:** إن أُرفق شعار أو أكثر أو دليل هوية بصرية، فاستخرج منه الألوان والخطوط وطبّقها على كل الصفحات (الخلفيات، العناوين، الأيقونات، الرسوم). وإن كانت الهوية داخل الشعار فاستخرج ألوانها منه.');
+  o.push('4. **الشعارات:** الشعار الرئيس بارز في الغلاف وصفحة الشكر، وصغير في زاوية ثابتة من كل صفحة. إن تعددت الشعارات (الجهة المنفذة، الجهة المشرفة، الداعمون) فرتّبها بتوازن واحترافية بلا تشويه أو تغيير لألوانها وأبعادها.');
+  o.push('5. **إن لم يُرفق شيء:** هوية فاخرة هادئة تناسب القرآن الكريم (أخضر زمردي داكن مع ذهبي، وخلفيات فاتحة، وزخرفة هندسية إسلامية خفيفة في الحواف).');
+  o.push('6. **الصور:** كل سطر يبدأ بـ«📷 صورة:» هو **مكان صورة** مع وصف ما يناسبه. إن أُرفقت صور فضعها في أماكنها، وإلا فضع إطارًا أنيقًا فارغًا بعنوانه ليُستبدل لاحقًا. **لا تستخدم صورًا فيها وجوه أشخاص مولّدة أو مختلقة.**');
+  o.push('7. **الرسوم:** ما يبدأ بـ«📊» رسم بياني أو إنفوجرافيك مقترح؛ نفّذه بشكل جذاب وواضح عند الطباعة.');
+  o.push('8. **لا تخترع أرقامًا ولا أسماء ولا اقتباسات.** ما بين [أقواس مربعة] يكمله المستخدم، أو اتركه إطارًا واضحًا للتعبئة.');
+  o.push('9. أخرج النتيجة جاهزة للطباعة (PDF عالي الجودة إن أمكن)، مع ترقيم الصفحات وتذييل صغير فيه اسم البرنامج والفترة.');
+  o.push(''); o.push('---'); o.push(''); o.push('# مادة التقرير'); o.push('');
+  if(X.cover){
+    P(PR.title||'تقرير الأثر — حلقات القرآن الكريم','غلاف كامل بصورة خلفية معتمة قليلًا، العنوان كبير في المنتصف، والشعارات أعلى الصفحة');
+    o.push('- **العنوان الفرعي:** '+(PR.org||'[اسم البرنامج أو الجهة المنفذة]'));
+    o.push('- **الفترة:** '+f(W[0])+' — '+f(W[1]));
+    o.push('- **مقدَّم إلى:** '+(PR.aud||'[الجهة]'));
+    o.push('- 📷 صورة: حلقة قرآن في مسجد، أو مصحف مفتوح بإضاءة دافئة');
+    o.push('- [شعار الجهة المنفذة] [شعار الجهة المشرفة / الداعمة]'); o.push('');
+  }
+  if(X.about){
+    P('من نحن','نصف الصفحة نص قصير، والنصف الآخر صورة');
+    o.push('برنامج لتحفيظ القرآن الكريم يضم **'+D.hsSel.length+' '+(D.hsSel.length===1?'حلقة':'حلقات')+'** و**'+D.nSt+' طالبًا**، تُعقد '+(D.wds.length?'أيام **'+D.wds.join(' و')+'**':'[أيام الحلقة]')+'، بمتابعة رقمية يومية لكل طالب.');
+    o.push('- **رسالتنا:** [رسالة البرنامج، مثل: إعداد جيل يحفظ كتاب الله ويعمل به]');
+    o.push('- **أهدافنا:** حفظ متقن — مراجعة منتظمة — متابعة دقيقة — [هدف آخر]');
+    o.push('- 📷 صورة: معلم مع طلابه في الحلقة'); o.push('');
+  }
+  if(X.impact){
+    P('الأثر بالأرقام','شبكة من 6 إلى 8 بطاقات، في كل بطاقة أيقونة ورقم كبير جدًا وعنوان قصير');
+    [['👥',D.nSt,'طالبًا'],['📖',f1(T.ph),'وجهًا حفظًا جديدًا'],['🔁',f1(T.pr),'وجهًا مراجعة'],['📚','≈ '+f1(juz),'جزءًا من القرآن'],
+     ['🗓️',D.nDays,D.nDays>=3&&D.nDays<=10?'أيام تسميع':'يوم تسميع'],['✅',pct(D.att),'نسبة الحضور'],['⭐',D.avg!=null?f1(D.avg)+'/10':'—','متوسط جودة التسميع'],['🏁',D.evS.length,D.evS.length>=3&&D.evS.length<=10?'سور أُتمّ حفظها':'إتمامًا لسور كاملة']].forEach(function(k){
+      o.push('- '+k[0]+' **'+k[1]+'** '+k[2]); });
+    o.push('- 📊 إنفوجرافيك: أرقام تعدّ بصريًا مع أيقونات موحّدة'); o.push('');
+  }
+  if(X.journey){
+    P('رحلة الحفظ','شريط أفقي بثلاثين جزءًا يُلوَّن منه ما يعادل المحفوظ، وتحته رقمان كبيران');
+    o.push('حفظ الطلاب في هذه الفترة **'+f1(T.ph)+' وجهًا** — ما يعادل نحو **'+f1(juz)+' جزءًا** من القرآن الكريم، وراجعوا **'+f1(T.pr)+' وجهًا**؛ فكل وجه جديد يقابله **'+(T.ph?f1(T.pr/T.ph):'—')+'** أوجه من المراجعة لتثبيته.');
+    o.push('- 📊 شريط الأجزاء الثلاثين: يُملأ منه ما يعادل '+f1(juz)+' جزءًا');
+    o.push('- 📊 أعمدة: الحفظ والمراجعة لكل حلقة'); o.push('');
+  }
+  if(X.att){
+    P('الانتظام والحضور','رسم دائري كبير في جانب، وثلاث حقائق قصيرة في الجانب الآخر');
+    o.push('- نسبة الحضور العامة: **'+pct(D.att)+'**');
+    o.push('- **'+fi(T.pres)+'** حصة تسميع حضرها الطلاب');
+    o.push('- **'+cnt2('reg')+'** طالبًا منتظمًا بلا غياب');
+    o.push('- 📊 دائرة نسبة الحضور'); o.push('');
+  }
+  if(X.hal && D.hsSel.length){
+    P('حلقاتنا','بطاقة لكل حلقة جنبًا إلى جنب، بلون مميز وأيقونة');
+    D.hsSel.forEach(function(n){ var x=D.byH[n]; o.push('- **حلقة '+n+'**: '+x.st+' طالبًا — '+f1(x.ph+x.pr)+' وجهًا حفظًا ومراجعة — حضور '+pct((x.p+x.b)?x.p/(x.p+x.b):null)+(x.gc?' — متوسط '+f1(x.gs/x.gc):'')); });
+    o.push('- 📷 صورة صغيرة لكل حلقة [اختياري]'); o.push('');
+  }
+  if(X.ach){
+    P('الإنجازات','أرقام كبيرة في الأعلى، وتحتها قائمة أوسمة أو شارات أنيقة');
+    o.push('- 🏁 **'+D.evS.length+'** إتمامًا لسور كاملة'+(D.evJ.length?' — 🏆 **'+D.evJ.length+'** إتمامًا لأجزاء كاملة':''));
+    o.push('- 🌟 **'+cnt2('star')+'** متميزًا في جودة التسميع — 🚀 **'+cnt2('fast')+'** متسارعًا في الحفظ — 📈 **'+cnt2('up')+'** في تحسّن ملحوظ');
+    D.ev.slice(-5).reverse().forEach(function(e){ o.push('- '+(e.type==='juz'?'🏆 ':'🏁 ')+e.name+' — أتمّ '+e.label); });
+    o.push('');
+  }
+  if(X.stars && top.length){
+    P('المتميزون','منصة تتويج لأول ثلاثة (الأول في المنتصف أعلى)، مع إطار صورة لكل منهم');
+    top.slice(0,3).forEach(function(a,i){ o.push('- '+['🥇','🥈','🥉'][i]+' **'+a.s.name+'** — حلقة '+a.s.h+' — '+f1(a.total)+' وجهًا'); });
+    o.push('- 📷 صورة: لحظة تكريم أو تسليم شهادة [اختياري، وبإذن أصحابها]'); o.push('');
+  }
+  if(X.story && top.length){
+    var st=top[0], d0=D.ev.filter(function(e){ return e.mil===st.s.mil && e.type!=='juz'; }).map(function(e){ return e.label.replace(/^سورة\s+/,''); });
+    P('قصة نجاح','صورة كبيرة في جانب، والقصة في الجانب الآخر مع اقتباس بخط مميز');
+    o.push('**'+st.s.name+'** من حلقة '+st.s.h+': حفظ في هذه الفترة **'+f1(st.ph)+' وجهًا** وراجع **'+f1(st.pr)+' وجهًا**'+(st.avg!=null?' بمتوسط جودة **'+f1(st.avg)+' من 10**':'')+(d0.length?'، وأتمّ في هذه الفترة حفظ '+cnt(d0.length,'سورة واحدة','سورتين','سور','سورة')+(d0.length<=4?' ('+d0.join('، ')+')':''):'')+'.');
+    o.push('- اقتباس: «[كلمة الطالب أو معلمه عن رحلته مع القرآن]»');
+    o.push('- 📷 صورة: الطالب في الحلقة [بإذنه، أو صورة رمزية لمصحف]'); o.push('');
+  }
+  if(X.exam){
+    P('جودة الحفظ','رقم كبير في المنتصف، وتحته شريط توزيع التقديرات');
+    if(ex.length){ o.push('اختُبر **'+ex.length+'** طالبًا في محفوظهم بمقاطع عشوائية، وبلغ متوسط الدرجات **'+f1(exAvg)+' من 100**.');
+      [[90,1000,'ممتاز'],[80,90,'جيد جدًا'],[70,80,'جيد'],[0,70,'دون ذلك']].forEach(function(b){ var c=ex.filter(function(a){ return a.exAvg>=b[0]&&a.exAvg<b[1]; }).length; if(c) o.push('- '+b[2]+': '+c); });
+      o.push('- 📊 شريط أفقي لتوزيع التقديرات'); }
+    else o.push('- [لم تُرصد اختبارات بعد — تُستكمل أو تُحذف الصفحة]');
+    o.push('');
+  }
+  if(X.tch){
+    P('الكادر التعليمي','صف من البطاقات الدائرية بأسماء المعلمين، ورقم كبير لأيام التدريس');
+    o.push('**'+D.tList.length+'** '+(D.tList.length===1?'معلم':'معلمين')+' قدّموا **'+D.tList.reduce(function(t,x){ return t+D.tDays[x]; },0)+'** يوم تدريس:');
+    D.tList.forEach(function(t){ o.push('- '+t); });
+    o.push('- 📷 صورة جماعية للمعلمين [اختياري]'); o.push('');
+  }
+  if(X.gallery){
+    P('من أجواء الحلقات','شبكة من 4 إلى 6 صور بأحجام متناسقة وتعليق قصير تحت كل صورة');
+    ['الطلاب أثناء التسميع','حلقة المراجعة الجماعية','اختبار الطلاب','تكريم المتميزين','المعلم يوجّه طالبًا','[مناسبة أخرى]'].forEach(function(c){ o.push('- 📷 صورة: '+c); });
+    o.push('');
+  }
+  if(X.voices){
+    P('كلمات وشهادات','اقتباسان أو ثلاثة بخط كبير وعلامات تنصيص زخرفية');
+    o.push('- «[كلمة مسؤول أو مشرف عن البرنامج]» — [الاسم والصفة]');
+    o.push('- «[كلمة معلم]» — [الاسم]');
+    o.push('- «[كلمة طالب]» — [الاسم]'); o.push('');
+  }
+  if(X.next){
+    P('التطلعات وفرص الدعم','ثلاثة أعمدة: ما نطمح إليه، وما نحتاجه، وأثر دعمكم');
+    o.push('- **نطمح إلى:** [زيادة عدد الحلقات / الوصول إلى … طالب / إتمام جزء عمّ لكل طالب …]');
+    o.push('- **نحتاج إلى:** [مكافآت المعلمين / جوائز المتميزين / مصاحف وأجهزة / …]');
+    o.push('- **أثر دعمكم:** كل '+(D.nSt?'طالب':'[وحدة دعم]')+' في البرنامج يحفظ في المتوسط **'+(L.length?f1(T.ph/L.length):'—')+' وجهًا** في هذه الفترة، [ربط الدعم بالأثر]');
+    if(D.CC){ var cm=D.CC.list.filter(function(a){ return D.sel(a.s.h)&&a.cm&&a.cm.ratio!=null; }), ok=cm.filter(function(a){ return a.cm.ratio>=0.9; }).length;
+      if(cm.length) o.push('- **'+ok+' من '+cm.length+'** طالبًا ملتزمون بخطط حفظهم أو متقدمون عليها'); }
+    o.push('');
+  }
+  if((PR.extra||'').trim()){ P('إضافات','بطاقات قصيرة'); PR.extra.trim().split('\n').forEach(function(x){ if(x.trim()) o.push('- '+x.trim()); }); o.push(''); }
+  if(X.thanks){
+    P('شكر وتقدير','صفحة أنيقة: آية في الأعلى، وعبارة الشكر، وشعارات الداعمين في صف');
+    o.push('﴿وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ فَهَلْ مِن مُّدَّكِرٍ﴾');
+    o.push('شكرًا لـ'+(PR.aud||'[الجهة الداعمة]')+' على دعمها ورعايتها، ولكل من أسهم في هذا الأثر.');
+    o.push('- [شعارات الداعمين والشركاء]'); o.push('');
+  }
+  if(X.contact){
+    P('للتواصل','صفحة ختامية بسيطة: الشعار في المنتصف وبيانات التواصل تحته');
+    o.push('- [الهاتف] — [البريد] — [الموقع أو الحسابات] — [العنوان]');
+    if(PR.by) o.push('- إعداد: '+PR.by);
+    o.push('- [رمز QR لصفحة البرنامج — اختياري]'); o.push('');
+  }
+  o.push('---'); o.push('*مصدر الأرقام: منصة رصد التسميع — الفترة '+g(W[0])+'م — '+g(W[1])+'م — أُعدّ في '+todayH()+'. عدد الصفحات: '+pg+'.*');
+  return o.join('\n');
+}
+
+/* ══ التقرير المطبوع ══ */
+function reportMarkdown(){
+  var D=presData(PR.rsec.plan), S2=PR.rsec, W=D.W, L=D.L, T=D.T;
+  var f=function(d){ return hfmt(d,{day:'numeric',month:'long',year:'numeric'}); }, g=function(d){ return iso(d).replace(/-/g,'/'); };
+  var per='من '+f(W[0])+' إلى '+f(W[1])+' (الموافق '+g(W[0])+'م — '+g(W[1])+'م)';
+  var hlist=D.hsSel.map(function(n){ return 'حلقة '+n; }).join('، ');
+  var ex=L.filter(function(a){ return a.exAvg!=null; }), exAvg=ex.length?ex.reduce(function(t,a){ return t+a.exAvg; },0)/ex.length:null;
+  var top=L.filter(function(a){ return a.total>0; }).sort(function(x,y){ return y.total-x.total; }).slice(0,10);
+  var cnt2=function(k){ return L.filter(function(a){ return a.b.indexOf(k)>-1; }).length; };
+  var alerts=L.filter(function(a){ return a.streak>=2; });
+  var o=[], secs=[];
+  var H=function(t){ secs.push(t); o.push('## '+t); };
+  o.push('# تعليمات إعداد التقرير المطبوع');
+  o.push('');
+  o.push('> هذا النص مادة **تقرير رسمي** عن منجزات حلقات القرآن الكريم، يُقدَّم مطبوعًا للجهة المسؤولة. المطلوب منك (برنامج الذكاء الاصطناعي):');
+  o.push('');
+  o.push('1. حوّله إلى **صفحات تقرير قابلة للطباعة** بمقاس **A4** (أفقي أو عمودي بحسب ما يناسب المحتوى، مع توحيده في كل الصفحات)، باللغة العربية من اليمين لليسار. **كل عنوان من المستوى الثاني (##) يبدأ صفحة جديدة**، وإن طال محتوى قسم فقسّمه على أكثر من صفحة مع تكرار العنوان متبوعًا بـ«(تابع)».');
+  o.push('2. **تصميم للطباعة:** خلفية بيضاء أو فاتحة جدًا، هوامش متساوية، **رأس صفحة** يتضمن الشعار واسم التقرير، و**تذييل** يتضمن رقم الصفحة والفترة. تجنب الخلفيات الداكنة والصور الكبيرة التي تستهلك الحبر.');
+  o.push('3. **الهوية البصرية:** إن أُرفق مع هذا النص شعار أو أكثر، أو دليل هوية بصرية، فاستخرج منه الألوان والخطوط وطبّقها على العناوين وترويسات الجداول والرسوم. وإن كانت الهوية داخل الشعار نفسه فاستخرج ألوانها منه.');
+  o.push('4. **الشعارات:** ضع الشعار (أو الشعارات) بحجم واضح في صفحة الغلاف، وبحجم صغير في رأس كل صفحة. وإن تعددت الشعارات (الجهة المشرفة والجهة المنفذة) فضعها متجاورة بتوازن، بلا تشويه أو تغيير في ألوانها أو أبعادها.');
+  o.push('5. **إن لم يُرفق شيء:** استخدم هوية رسمية هادئة (أخضر داكن مع ذهبي هادئ) وخطًا عربيًا واضحًا مناسبًا للطباعة.');
+  o.push('6. **الأسلوب:** رسمي رصين. الفقرات تبقى فقرات كاملة (هذا تقرير يُقرأ لا عرض يُلقى)، والجداول تُعرض **جداول حقيقية** بحدود خفيفة وترويسة ملونة، مع ترقيم الجداول والأشكال.');
+  o.push('7. **الرسوم البيانية:** حيث يُقترح رسم، اجعله بسيطًا واضحًا حتى لو طُبع بالأبيض والأسود (ألوان متباينة وقيم مكتوبة على الرسم).');
+  o.push('8. **لا تخترع أرقامًا أو أسماء غير موجودة.** ما بين [أقواس مربعة] حقول يكملها المستخدم، أو تُترك فارغة للتعبئة اليدوية بعد الطباعة.');
+  o.push('9. إن أمكن فأخرج النتيجة ملف **PDF** أو ملف عرض قابلًا للطباعة مباشرة.');
+  o.push(''); o.push('---'); o.push(''); o.push('# مادة التقرير'); o.push('');
+  if(S2.cover){
+    H(PR.title||'تقرير منجزات حلقات القرآن الكريم');
+    o.push('- [شعار الجهة المشرفة] [شعار الجهة المنفذة]');
+    if(PR.org) o.push('- **الجهة المنفذة:** '+PR.org);
+    o.push('- **مقدَّم إلى:** '+(PR.aud||'[الجهة المسؤولة]'));
+    o.push('- **الفترة:** '+per);
+    o.push('- **تاريخ الإصدار:** '+todayH());
+    o.push('- **رقم التقرير:** [ … ]');
+    if(PR.by) o.push('- **إعداد:** '+PR.by);
+    o.push('');
+  }
+  var tocAt=o.length; if(S2.toc){ H('فهرس المحتويات'); o.push('__TOC__'); o.push(''); }
+  if(S2.intro){
+    H('مقدمة وتعريف بالبرنامج');
+    o.push('يهدف برنامج حلقات القرآن الكريم إلى تحفيظ الطلاب كتاب الله تعالى وتثبيت محفوظهم بالمراجعة المنتظمة، مع متابعة يومية دقيقة لحضورهم ومستوى أدائهم. '
+      +'ويضم البرنامج في هذه الفترة **'+D.hsSel.length+' '+(D.hsSel.length===1?'حلقة':'حلقات')+'** ('+hlist+')، تُعقد '+(D.wds.length?'أيام **'+D.wds.join(' و')+'**':'[أيام الحلقة]')+' [وقت الحلقة ومكانها].');
+    o.push('');
+    o.push('ويتناول هذا التقرير منجزات الفترة '+per+'، ويعرض مؤشرات الحفظ والمراجعة والحضور والأداء والاختبارات، ثم التحديات والتوصيات.');
+    o.push('');
+  }
+  if(S2.exec){
+    H('الملخص التنفيذي');
+    o.push('خلال الفترة المشمولة بالتقرير، شارك في البرنامج **'+D.nSt+' طالبًا** و**'+D.tList.length+' '+(D.tList.length===1?'معلم':'معلمين')+'**، وعُقد التسميع في **'+D.nDays+' '+(D.nDays===1?'يوم':'أيام')+'**، سُجّلت فيها **'+fi(T.pres)+' حصة تسميع**. '
+      +'وبلغ مجموع الحفظ الجديد **'+f1(T.ph)+' وجهًا** (ما يعادل نحو **'+f1(T.ph/20)+' جزء**)، ومجموع المراجعة **'+f1(T.pr)+' وجهًا**. '
+      +'وكانت نسبة الحضور العامة **'+pct(D.att)+'**'+(D.avg!=null?'، ومتوسط درجات التسميع **'+f1(D.avg)+' من 10**':'')+'.'
+      +(D.ev.length?' كما سُجّل '+(D.evS.length?'**'+D.evS.length+'** إتمامًا لسور كاملة':'')+(D.evS.length&&D.evJ.length?' و':'')+(D.evJ.length?'**'+D.evJ.length+'** إتمامًا لأجزاء كاملة':'')+'.':''));
+    o.push('');
+    o.push('**أبرز ما في الفترة:**');
+    var best=L.filter(function(a){ return a.total>0; }).sort(function(x,y){ return y.total-x.total; })[0];
+    if(best) o.push('- الأعلى إنجازًا: '+best.s.name+' (حلقة '+best.s.h+') بـ'+f1(best.total)+' وجه.');
+    var bh=D.hsSel.map(function(n){ return D.byH[n]; }).sort(function(a,b){ return (b.ph+b.pr)-(a.ph+a.pr); })[0];
+    if(bh && D.hsSel.length>1) o.push('- الحلقة الأعلى إنجازًا: حلقة '+bh.n+' بـ'+f1(bh.ph+bh.pr)+' وجه حفظًا ومراجعة.');
+    o.push('- متميزون في الدرجات: '+cnt2('star')+' | متسارعون في الحفظ: '+cnt2('fast')+' | منتظمون بلا غياب: '+cnt2('reg')+'.');
+    o.push('');
+  }
+  if(S2.method){
+    H('مصدر البيانات وطريقة الاحتساب');
+    o.push('- **مصدر البيانات:** الرصد الرقمي اليومي في منصة رصد التسميع، يسجّله المعلم أثناء الحلقة لكل طالب.');
+    o.push('- **الوجه:** صفحة من مصحف المدينة النبوية (604 صفحات)، ويُحسب مقدار كل مقطع بأوزان آياته من الصفحة.');
+    o.push('- **الحضور:** حضور الطالب في يوم الحلقة المسجّل، ونسبته = الحضور ÷ (الحضور + الغياب).');
+    o.push('- **درجة التسميع:** من 1 إلى 10 في كل حصة. **الاختبار:** من 100، بمقاطع عشوائية من محفوظ الطالب، مع خصم محدد لكل نوع من الأخطاء.');
+    o.push('- الأيام الملغاة (إجازات وظروف) مستبعدة من الحساب.');
+    o.push('');
+  }
+  if(S2.kpi){
+    H('المؤشرات الرئيسة');
+    o.push('*جدول (1): المؤشرات الرئيسة للفترة*'); o.push('');
+    o.push('| المؤشر | القيمة |'); o.push('|---|---|');
+    [['عدد الحلقات',D.hsSel.length],['عدد الطلاب',D.nSt],['عدد المعلمين',D.tList.length],['أيام التسميع',D.nDays],['حصص التسميع المسجلة',fi(T.pres)],
+     ['الحفظ الجديد',f1(T.ph)+' وجه (≈ '+f1(T.ph/20)+' جزء)'],['المراجعة',f1(T.pr)+' وجه'],['المجموع حفظًا ومراجعة',f1(T.ph+T.pr)+' وجه'],
+     ['متوسط الحفظ لكل طالب',(L.length?f1(T.ph/L.length):'—')+' وجه'],['نسبة الحضور',pct(D.att)],['متوسط درجات التسميع',D.avg!=null?f1(D.avg)+' من 10':'—'],
+     ['إتمام سور كاملة',D.evS.length],['إتمام أجزاء كاملة',D.evJ.length]].forEach(function(r){ o.push('| '+r[0]+' | '+r[1]+' |'); });
+    o.push('');
+  }
+  if(S2.hifz){
+    H('الحفظ والمراجعة');
+    o.push('بلغ مجموع الحفظ الجديد في الفترة **'+f1(T.ph)+' وجهًا**، والمراجعة **'+f1(T.pr)+' وجهًا**؛ أي أن المراجعة تعادل **'+(T.ph?f1(T.pr/T.ph):'—')+'** ضعف الحفظ الجديد، وهو مؤشر على العناية بتثبيت المحفوظ.');
+    o.push(''); o.push('*جدول (2): الحفظ والمراجعة حسب الحلقة*'); o.push('');
+    o.push('| الحلقة | الطلاب | الحفظ الجديد (وجه) | المراجعة (وجه) | المجموع | متوسط الحفظ للطالب |'); o.push('|---|---|---|---|---|---|');
+    D.hsSel.forEach(function(n){ var x=D.byH[n]; o.push('| '+n+' | '+x.st+' | '+f1(x.ph)+' | '+f1(x.pr)+' | '+f1(x.ph+x.pr)+' | '+(x.st?f1(x.ph/x.st):'—')+' |'); });
+    o.push('| **المجموع** | **'+L.length+'** | **'+f1(T.ph)+'** | **'+f1(T.pr)+'** | **'+f1(T.ph+T.pr)+'** | **'+(L.length?f1(T.ph/L.length):'—')+'** |');
+    o.push(''); o.push('*شكل مقترح: أعمدة متجاورة للحفظ والمراجعة لكل حلقة.*'); o.push('');
+  }
+  if(S2.att){
+    H('الحضور والانتظام');
+    o.push('بلغت نسبة الحضور العامة **'+pct(D.att)+'** ('+fi(T.pres)+' حضورًا مقابل '+fi(T.abs)+' غيابًا)، وبلغ عدد الطلاب المنتظمين بلا غياب (خمس حصص فأكثر) **'+cnt2('reg')+'** طالبًا.');
+    o.push(''); o.push('*جدول (3): الحضور حسب الحلقة*'); o.push('');
+    o.push('| الحلقة | الحضور | الغياب | نسبة الحضور |'); o.push('|---|---|---|---|');
+    D.hsSel.forEach(function(n){ var x=D.byH[n]; o.push('| '+n+' | '+x.p+' | '+x.b+' | '+pct((x.p+x.b)?x.p/(x.p+x.b):null)+' |'); });
+    o.push('');
+  }
+  if(S2.grades){
+    H('مستويات الأداء في التسميع');
+    var bins=[[9,10.01,'ممتاز (9–10)'],[7,9,'جيد جدًا (7–8)'],[5,7,'جيد (5–6)'],[0,5,'يحتاج متابعة (دون 5)']], allg=[];
+    L.forEach(function(a){ allg=allg.concat(a.gs); });
+    o.push('توزيع **'+allg.length+'** درجة تسميع مسجلة في الفترة، بمتوسط عام **'+(D.avg!=null?f1(D.avg):'—')+' من 10**:'); o.push('');
+    o.push('*جدول (4): توزيع درجات التسميع*'); o.push('');
+    o.push('| المستوى | عدد الدرجات | النسبة |'); o.push('|---|---|---|');
+    bins.forEach(function(b){ var c=allg.filter(function(x){ return x>=b[0] && x<b[1]; }).length; o.push('| '+b[2]+' | '+c+' | '+pct(allg.length?c/allg.length:null)+' |'); });
+    o.push(''); o.push('*شكل مقترح: دائرة لتوزيع المستويات.*'); o.push('');
+  }
+  if(S2.exam){
+    H('الاختبارات');
+    if(ex.length){
+      o.push('اختُبر **'+ex.length+'** طالبًا في محفوظهم بمقاطع عشوائية، وبلغ متوسط الدرجات **'+f1(exAvg)+' من 100**.'); o.push('');
+      o.push('*جدول (5): نتائج الاختبارات*'); o.push(''); o.push('| التقدير | عدد الطلاب |'); o.push('|---|---|');
+      [[90,1000,'ممتاز (90 فأعلى)'],[80,90,'جيد جدًا (80–89)'],[70,80,'جيد (70–79)'],[60,70,'مقبول (60–69)'],[0,60,'دون ذلك']].forEach(function(b){
+        o.push('| '+b[2]+' | '+ex.filter(function(a){ return a.exAvg>=b[0] && a.exAvg<b[1]; }).length+' |'); });
+      o.push(''); o.push('*ملاحظة: نتائج الاختبارات المرصودة حتى تاريخ إصدار التقرير.*');
+    } else o.push('[لم تُرصد اختبارات في المنصة بعد — تُستكمل يدويًا أو يُحذف القسم]');
+    o.push('');
+  }
+  if(S2.ach){
+    H('الإنجازات');
+    if(D.ev.length){
+      o.push('سُجّل في الفترة **'+D.evS.length+'** إتمامًا لسور كاملة'+(D.evJ.length?' و**'+D.evJ.length+'** إتمامًا لأجزاء كاملة':'')+'.'); o.push('');
+      o.push('*جدول (6): الإنجازات'+(D.ev.length>25?' (آخر 25)':'')+'*'); o.push(''); o.push('| الطالب | الحلقة | الإنجاز | التاريخ |'); o.push('|---|---|---|---|');
+      D.ev.slice(-25).reverse().forEach(function(e){ o.push('| '+e.name+' | '+e.h+' | '+(e.type==='juz'?'🏆 ':'')+'أتمّ '+e.label+' | '+(e.date?hfmt(pd(e.date),{day:'numeric',month:'long'}):'')+' |'); });
+    } else o.push('[لا توجد إتمامات مسجلة في هذه الفترة]');
+    o.push('');
+  }
+  if(S2.top){
+    H('المتميزون والأوائل');
+    o.push('*جدول (7): الأوائل في مجموع الحفظ والمراجعة*'); o.push('');
+    o.push('| م | الطالب | الحلقة | الحفظ (وجه) | المراجعة (وجه) | المجموع | متوسط الدرجات |'); o.push('|---|---|---|---|---|---|---|');
+    top.forEach(function(a,i){ o.push('| '+(i+1)+' | '+a.s.name+' | '+a.s.h+' | '+f1(a.ph)+' | '+f1(a.pr)+' | '+f1(a.total)+' | '+(a.avg!=null?f1(a.avg):'—')+' |'); });
+    o.push('');
+    o.push('- متميزون في الدرجات (متوسط 9 فأكثر في 3 حصص فأكثر): **'+cnt2('star')+'**');
+    o.push('- متسارعون في الحفظ (مرة ونصف فأكثر من المعتاد في حلقتهم): **'+cnt2('fast')+'**');
+    o.push('- في تحسّن ملحوظ في درجاتهم: **'+cnt2('up')+'**'); o.push('');
+  }
+  if(S2.tch){
+    H('المعلمون');
+    o.push('شارك في التدريس خلال الفترة **'+D.tList.length+'** '+(D.tList.length===1?'معلم':'معلمين')+'.'); o.push('');
+    o.push('*جدول (8): أيام التدريس لكل معلم*'); o.push(''); o.push('| المعلم | أيام التدريس | الحلقات |'); o.push('|---|---|---|');
+    D.tList.forEach(function(t){ o.push('| '+t+' | '+D.tDays[t]+' | '+Object.keys(D.tHal[t]).join('، ')+' |'); });
+    o.push('');
+  }
+  if(S2.plan && D.CC){
+    var cm=D.CC.list.filter(function(a){ return D.sel(a.s.h) && a.cm && a.cm.ratio!=null; }), c={a:0,b:0,c:0,d:0}; cm.forEach(function(a){ c[a.cm.st.k]++; });
+    H('الالتزام بخطط الحفظ');
+    o.push('لكل طالب خطة حفظ بمقدار يومي محدد، ويُقاس التزامه بما أنجزه فعلًا مقارنة بما تقرره خطته منذ أول حصة له، فيُقاس كل طالب على خطته هو.'); o.push('');
+    o.push('*جدول (9): توزيع الالتزام بالخطط (حتى تاريخ التقرير)*'); o.push(''); o.push('| الحالة | عدد الطلاب |'); o.push('|---|---|');
+    o.push('| متقدم على خطته (110% فأكثر) | '+c.a+' |'); o.push('| ملتزم (90–109%) | '+c.b+' |'); o.push('| متأخر قليلًا (60–89%) | '+c.c+' |'); o.push('| متأخر (دون 60%) | '+c.d+' |');
+    o.push('');
+  }
+  if(S2.chal){
+    H('التحديات والملاحظات');
+    if(D.att!=null && D.att<0.85) o.push('- نسبة الحضور ('+pct(D.att)+') دون المستوى المأمول.');
+    if(alerts.length) o.push('- '+alerts.length+' '+(alerts.length===1?'طالب':'طلاب')+' بغياب متتالٍ في آخر الفترة يحتاجون متابعة.');
+    var low=L.filter(function(a){ return a.avg!=null && a.avg<5; }).length; if(low) o.push('- '+low+' '+(low===1?'طالب':'طلاب')+' بمتوسط درجات دون 5 يحتاجون عناية خاصة.');
+    o.push('- [تحديات أخرى: الوقت، المكان، تفاوت المستويات، …]'); o.push('');
+  }
+  if(S2.rec){
+    H('التوصيات');
+    o.push('1. الاستمرار في المتابعة اليومية الرقمية للحفظ والمراجعة والحضور.');
+    if(D.att!=null && D.att<0.9) o.push('2. تعزيز الحضور بالتواصل مع المتغيبين وتحفيز المنتظمين.'); else o.push('2. المحافظة على مستوى الانتظام الحالي وتحفيز المنتظمين.');
+    o.push('3. عقد اختبارات دورية في المحفوظ ومواضع الضعف لتثبيته.');
+    o.push('4. تكريم المتميزين والمتقدمين على خططهم.');
+    o.push('5. [توصيات أخرى]'); o.push('');
+  }
+  if((PR.extra||'').trim()){ H('إضافات'); PR.extra.trim().split('\n').forEach(function(x){ if(x.trim()) o.push('- '+x.trim()); }); o.push(''); }
+  if(S2.end){
+    H('الخاتمة');
+    o.push('نحمد الله تعالى على ما تحقق في هذه الفترة، ونشكر '+(PR.aud||'الجهة المسؤولة')+' على دعمها ورعايتها، والمعلمين على جهودهم، والطلاب على حرصهم ومثابرتهم، سائلين الله أن يجعل القرآن الكريم ربيع قلوبهم.');
+    o.push(''); o.push('﴿وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ فَهَلْ مِن مُّدَّكِرٍ﴾'); o.push('');
+  }
+  if(S2.sign){
+    H('الاعتماد والتوقيع');
+    o.push('| الصفة | الاسم | التوقيع | التاريخ |'); o.push('|---|---|---|---|');
+    o.push('| مُعِدّ التقرير | '+(PR.by||'')+' | | |'); o.push('| المشرف | | | |'); o.push('| الاعتماد | | | |');
+    o.push(''); o.push('*اترك خانات التوقيع فارغة للتعبئة اليدوية بعد الطباعة، مع مكان للختم.*'); o.push('');
+  }
+  if(S2.apx){
+    H('ملحق: بيانات الطلاب تفصيليًا');
+    o.push('*جدول (10): أداء الطلاب في الفترة — يُقسَّم على أكثر من صفحة عند الطباعة، مع تكرار ترويسة الجدول*'); o.push('');
+    o.push('| م | الطالب | الحلقة | الحفظ (وجه) | المراجعة (وجه) | الحضور | الغياب | متوسط الدرجات | الاختبار |'); o.push('|---|---|---|---|---|---|---|---|---|');
+    L.slice().sort(function(a,b){ return a.s.h.localeCompare(b.s.h,'ar') || b.total-a.total; }).forEach(function(a,i){
+      o.push('| '+(i+1)+' | '+a.s.name+' | '+a.s.h+' | '+f1(a.ph)+' | '+f1(a.pr)+' | '+a.pres+' | '+a.abs+' | '+(a.avg!=null?f1(a.avg):'—')+' | '+(a.exAvg!=null?f1(a.exAvg):'—')+' |'); });
+    o.push('');
+  }
+  o.push('---'); o.push('*مصدر البيانات: منصة رصد التسميع — أُعدّ في '+todayH()+'.*');
+  var toc=secs.filter(function(t,i){ return t!=='فهرس المحتويات' && i>0; }).map(function(t,i){ return (i+1)+'. '+t; }).join('\n');
+  return o.join('\n').replace('__TOC__', toc);
+}
+
+/* ══ العرض التقديمي (الشرائح المختصرة) ══ */
+function slidesMarkdown(){
   var W=presRange(), F0=R.f; R.f=Object.assign({},F0,{h:-1,srb:'',q:''});
   var C=compute(false,W); var CC=null; if(PR.sec.plan && Q){ var F1=R.f; R.f=Object.assign({},F1,{period:'all'}); CC=compute(false); R.f=F1; } R.f=F0;
   var sel=function(h){ return PR.all || !!PR.hs[h]; };
