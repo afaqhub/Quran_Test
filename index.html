@@ -337,6 +337,11 @@
   .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .toolgrid button{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:14px 10px;font-size:15px;font-weight:600;color:var(--ink);text-align:right}
   .toolgrid button small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:3px}
+  .prsec{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .prsec label{display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:9px 10px;font-size:13.5px}
+  .prsec label input{width:auto;margin:0}
+  #prout{width:100%;min-height:340px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.7;direction:rtl;border:1px solid var(--line);border-radius:12px;padding:10px;background:#FCFCFB;color:var(--ink)}
+  html[data-theme="dark"] #prout{background:#121815}
   .pgprev{font-size:13px;color:var(--green);background:var(--mint);border-radius:8px;padding:5px 10px;margin-top:2px}
   .bh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
   .bh h2{margin:0}
@@ -729,6 +734,7 @@ function header(title, sub, back){
    ◀ ضع رابط تطبيق الويب هنا بعد نشره (ينتهي بـ /exec):
    ══════════════════════════════════════════════════════════ */
 var API_URL = 'https://script.google.com/macros/s/AKfycbyTtCd-Qiy8ITu3Mc9dNB_n84N8FP8M8BOnNhxOIZe2GDUNTsXm9UR48UwoQizLr038/exec';
+
 function apiKey(){ return mem('wa_key')||''; }
 function apiReady(){ return API_URL.indexOf('/exec')>-1; }
 function apiCall(fn, args){
@@ -936,6 +942,22 @@ function homeBody(){
 }
 function filterHal(q){ q=(q||'').trim(); document.querySelectorAll('#hlist .halaqah').forEach(function(b){ b.style.display=(!q||b.getAttribute('data-n').indexOf(q)>-1)?'':'none'; }); }
 
+/* الرد السريع بعد الحفظ: يُدمج في بيانات الشاشة. إذا لم يتطابق شكله (طالب أُضيف أو يوم مختلف) يُعاد التحميل الكامل */
+function applyLite(r){
+  if(!r || !r.lite){ if(r && r.students){ S.data=r; return true; } return false; }
+  var d=S.data; if(!d || d.dayIdx!==r.dayIdx || !d.days || !d.days[r.dayIdx]) return false;
+  var by={}; d.students.forEach(function(x){ by[x.key]=x; });
+  if(r.students.length!==d.students.length) return false;
+  for(var i=0;i<r.students.length;i++){ if(!by[r.students[i].key] || d.students[i].key!==r.students[i].key) return false; }
+  d.students=r.students.map(function(x){ x.focus=(by[x.key]&&by[x.key].focus)||[]; return x; });
+  d.day.teacher=r.teacher||d.day.teacher; d.days[r.dayIdx].nrec=r.nrec;
+  HOME=null;
+  return true;
+}
+function withDay(r, cb){
+  if(applyLite(r)) return cb(S.data);
+  call('waGetDay',[S.sheet, S.data?S.data.dayIdx:null],function(full){ S.data=full; cb(full); });
+}
 function conflictDialog(msg){
   toast('لم يُحفظ — تسجيل متعارض','err');
   var dr=$('drawer');
@@ -943,6 +965,200 @@ function conflictDialog(msg){
     +'<div class="muted" style="font-size:13px;margin-bottom:10px">لم يُحفظ ما أدخلته، حفاظًا على تسجيل زميلك. اضغط «تحديث» لترى ما سُجّل فعلًا ثم أكمل.</div>'
     +'<button class="primary" onclick="closeProfile();loadDay(S.data.dayIdx)">↻ تحديث الشاشة</button></main>';
   dr.classList.add('open');
+}
+
+/* ══════════ مادة العرض التقديمي ══════════ */
+var PSEC=[
+  ['cover','الغلاف',1],['exec','ملخص تنفيذي',1],['kpi','أرقام رئيسة',1],['hifz','الحفظ والمراجعة',1],
+  ['att','الحضور والانتظام',1],['exam','الاختبارات',1],['hal','مقارنة الحلقات',1],['ach','الإنجازات (إتمام السور والأجزاء)',1],
+  ['top','المتميزون والأوائل',1],['tch','المعلمون',1],['plan','الالتزام بخطط الحفظ',1],['chal','التحديات والفرص',1],
+  ['rec','التوصيات والخطوات القادمة',1],['end','الشكر والختام',1]
+];
+var PR=null;
+function openPres(from){
+  ensureRep(function(){
+    if(!PR){ PR={ range:'1m', from:'', to:'', hs:{}, all:true, title:'تقرير منجزات حلقات القرآن الكريم', org:'', aud:'الجهة المشرفة على البرنامج',
+                  by:S.teacher||'', extra:'', sec:{} }; PSEC.forEach(function(x){ PR.sec[x[0]]=!!x[2]; }); }
+    PR.back=from; showPres();
+  });
+}
+function presRange(){
+  var to=pd(R.raw.today)||new Date(), from=new Date(to);
+  if(PR.range==='2w') from.setDate(from.getDate()-13);
+  else if(PR.range==='1m') from.setMonth(from.getMonth()-1);
+  else if(PR.range==='2m') from.setMonth(from.getMonth()-2);
+  else if(PR.range==='3m') from.setMonth(from.getMonth()-3);
+  else if(PR.range==='all'){ var ds=R.raw.records.map(function(r){ return r.date; }).filter(Boolean).sort(); from=ds.length?pd(ds[0]):from; }
+  else { from=PR.from?pd(PR.from):from; to=PR.to?pd(PR.to):to; }
+  from.setHours(0,0,0,0); var t2=new Date(to); t2.setHours(23,59,59,999);
+  return [from,t2];
+}
+function showPres(){
+  header('مادة العرض التقديمي','نص جاهز لبرامج الذكاء الاصطناعي', function(){ PR.back==='adm'?showAdmin():showReports(false); }); actions('');
+  var hs=R.hs, h='<div class="narrow">';
+  h+='<div class="note info">اختر الفترة والحلقات والأقسام، ثم انسخ النص وأعطه أي برنامج ذكاء اصطناعي مع شعار الجهة وهويتها البصرية، فيُنشئ العرض. الأصل: آخر شهر، لكل الحلقات، بكل الأقسام.</div>';
+  h+='<div class="block"><h2>الفترة</h2><div class="chips">'+[['2w','آخر أسبوعين'],['1m','آخر شهر'],['2m','آخر شهرين'],['3m','آخر 3 أشهر'],['all','منذ بداية البرنامج'],['custom','تحديد المدة']].map(function(o){
+      return '<button class="chip'+(PR.range===o[0]?' on':'')+'" onclick="PR.range=\''+o[0]+'\';showPres()">'+o[1]+'</button>'; }).join('')+'</div>';
+  if(PR.range==='custom') h+='<div class="frow"><div class="field"><label>من</label><input type="date" value="'+PR.from+'" onchange="PR.from=this.value;showPres()"></div><div class="field"><label>إلى</label><input type="date" value="'+PR.to+'" onchange="PR.to=this.value;showPres()"></div></div>';
+  var W=presRange(); h+='<div class="muted" style="font-size:13px">'+hfmt(W[0],{day:'numeric',month:'long',year:'numeric'})+' ← '+hfmt(W[1],{day:'numeric',month:'long',year:'numeric'})+'</div></div>';
+  h+='<div class="block"><h2>الحلقات</h2><div class="chips"><button class="chip'+(PR.all?' on':'')+'" onclick="PR.all=true;PR.hs={};showPres()">كل الحلقات</button>'
+    +hs.map(function(n){ return '<button class="chip'+(!PR.all&&PR.hs[n]?' on':'')+'" onclick="PR.all=false;PR.hs[\''+esc(n)+'\']=!PR.hs[\''+esc(n)+'\'];if(!Object.keys(PR.hs).some(function(k){return PR.hs[k];}))PR.all=true;showPres()">'+esc(n)+'</button>'; }).join('')+'</div></div>';
+  h+='<div class="block"><h2>بيانات العرض</h2>'
+    +'<div class="field"><label>عنوان العرض</label><input type="text" value="'+esc(PR.title)+'" oninput="PR.title=this.value;prRender()"></div>'
+    +'<div class="field"><label>اسم البرنامج أو الجهة المنفذة</label><input type="text" value="'+esc(PR.org)+'" placeholder="مثال: حلقات القرآن الكريم — المعهد" oninput="PR.org=this.value;prRender()"></div>'
+    +'<div class="field"><label>الفئة المستهدفة (مقدَّم إلى)</label><input type="text" value="'+esc(PR.aud)+'" oninput="PR.aud=this.value;prRender()"></div>'
+    +'<div class="field"><label>إعداد</label><input type="text" value="'+esc(PR.by)+'" oninput="PR.by=this.value;prRender()"></div></div>';
+  h+='<div class="block"><h2>أقسام العرض</h2><div class="prsec">'+PSEC.map(function(x){ return '<label><input type="checkbox"'+(PR.sec[x[0]]?' checked':'')+' onchange="PR.sec[\''+x[0]+'\']=this.checked;prRender()">'+x[1]+'</label>'; }).join('')+'</div></div>';
+  h+='<div class="block"><h2>إضافات يدوية <span class="muted" style="font-size:13px;font-weight:400">(اختياري)</span></h2><textarea rows="3" placeholder="منجزات أو ملاحظات تريد إضافتها بنفسك (تظهر في شريحة مستقلة)" oninput="PR.extra=this.value;prRender()">'+esc(PR.extra)+'</textarea></div>';
+  h+='<div class="block"><h2>النص الجاهز</h2><textarea id="prout" readonly></textarea>'
+    +'<div class="tbtns"><button class="main" onclick="copyText(\'prout\')">📋 نسخ النص</button><button onclick="prDownload()">⬇️ تنزيل ملف .md</button></div></div></div>';
+  app(h); prRender();
+}
+function prRender(){ var el=$('prout'); if(el) el.value=presMarkdown(); }
+function prDownload(){
+  try{ var b=new Blob([presMarkdown()],{type:'text/markdown;charset=utf-8'}), a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='مادة_العرض_التقديمي.md'; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },500); }
+  catch(e){ toast('تعذّر التنزيل — استخدم النسخ','err'); }
+}
+function presMarkdown(){
+  var W=presRange(), F0=R.f; R.f=Object.assign({},F0,{h:-1,srb:'',q:''});
+  var C=compute(false,W); var CC=null; if(PR.sec.plan && Q){ var F1=R.f; R.f=Object.assign({},F1,{period:'all'}); CC=compute(false); R.f=F1; } R.f=F0;
+  var sel=function(h){ return PR.all || !!PR.hs[h]; };
+  var L=C.list.filter(function(a){ return sel(a.s.h); }), hsSel=R.hs.filter(sel);
+  var inW=function(ds){ var d=pd(ds); return d && d>=W[0] && d<=W[1]; };
+  var T={pres:0,abs:0,ph:0,pr:0,gs:0,gc:0}; L.forEach(function(a){ T.pres+=a.pres; T.abs+=a.abs; T.ph+=a.ph; T.pr+=a.pr; a.gs.forEach(function(g){ T.gs+=g; T.gc++; }); });
+  var att=(T.pres+T.abs)?T.pres/(T.pres+T.abs):null, avg=T.gc?T.gs/T.gc:null;
+  var recs=R.raw.records.filter(function(r){ return sel(r.h) && inW(r.date); });
+  var dates={}; recs.forEach(function(r){ dates[r.date]=1; }); var nDays=Object.keys(dates).length;
+  var tDays={}; R.raw.days.forEach(function(d){ if(d.t && sel(d.h) && inW(d.date)) tDays[d.t]=(tDays[d.t]||0)+1; });
+  var tList=Object.keys(tDays).sort(function(a,b){ return tDays[b]-tDays[a]; });
+  var nSt=R.raw.students.filter(function(s){ return sel(s.h); }).length;
+  var ev=((R.raw.ach&&R.raw.ach.events)||[]).filter(function(e){ return sel(e.h) && inW(e.date); });
+  var evS=ev.filter(function(e){ return e.type!=='juz'; }), evJ=ev.filter(function(e){ return e.type==='juz'; });
+  var ex=L.filter(function(a){ return a.exAvg!=null; }), exAvg=ex.length?ex.reduce(function(t,a){ return t+a.exAvg; },0)/ex.length:null;
+  var top=L.filter(function(a){ return a.total>0; }).sort(function(x,y){ return y.total-x.total; }).slice(0,5);
+  var fast=L.filter(function(a){ return a.ph>0; }).sort(function(x,y){ return y.ph-x.ph; })[0];
+  var cnt2=function(k){ return L.filter(function(a){ return a.b.indexOf(k)>-1; }).length; };
+  var alerts=L.filter(function(a){ return a.streak>=2; });
+  var f=function(d){ return hfmt(d,{day:'numeric',month:'long',year:'numeric'}); }, g=function(d){ return iso(d).replace(/-/g,'/'); };
+  var per=f(W[0])+' — '+f(W[1])+' (الموافق '+g(W[0])+'م — '+g(W[1])+'م)';
+  var hlist=hsSel.map(function(n){ return 'حلقة '+n; }).join('، ');
+  var o=[];
+  o.push('# تعليمات إنشاء العرض التقديمي');
+  o.push('');
+  o.push('> هذا النص مادة جاهزة لعرض تقديمي عن منجزات حلقات القرآن الكريم. المطلوب منك (برنامج الذكاء الاصطناعي):');
+  o.push('');
+  o.push('1. أنشئ عرضًا تقديميًا احترافيًا رصينًا باللغة العربية (اتجاه من اليمين لليسار)، **شريحة لكل عنوان من المستوى الثاني (##)** في قسم «مادة العرض».');
+  o.push('2. **الهوية البصرية:** إن أُرفق مع هذا النص شعار أو أكثر، أو دليل هوية بصرية، فاستخرج منه الألوان والخطوط وطبّقها على كل الشرائح. وإن كانت الهوية داخل الشعار نفسه فاستخرج ألوانها منه.');
+  o.push('3. **الشعارات:** ضع الشعار الرئيس في شريحة الغلاف بحجم واضح، وبحجم صغير في زاوية ثابتة من بقية الشرائح. وإن تعددت الشعارات (الجهة المشرفة والجهة المنفذة مثلًا) فضعها متجاورة في الغلاف والختام بترتيب متوازن، بلا تشويه أو تغيير في ألوانها أو أبعادها.');
+  o.push('4. **إن لم يُرفق شيء:** استخدم هوية هادئة تناسب القرآن الكريم (أخضر داكن مع ذهبي هادئ على خلفية فاتحة) وخطًا عربيًا واضحًا، مع زخرفة هندسية خفيفة غير مزدحمة.');
+  o.push('5. حوّل الأرقام إلى **بطاقات مؤشرات كبيرة**، واستخدم الرسوم البيانية حيث يُقترح ذلك، ولا تزدحم الشريحة بالنص (5 نقاط كحد أعلى).');
+  o.push('6. **لا تخترع أرقامًا أو أسماء غير موجودة.** ما بين [أقواس مربعة] حقول يكملها المستخدم أو تُحذف إن لم تُكمل.');
+  o.push('7. ضع ما تحت «ملاحظة للمتحدث» في ملاحظات الشريحة لا على الشريحة نفسها.');
+  o.push('8. الطابع العام: رسمي، رصين، مختصر، يليق بعرضه على جهة مشرفة.');
+  o.push(''); o.push('---'); o.push(''); o.push('# مادة العرض'); o.push('');
+  if(PR.sec.cover){
+    o.push('## '+(PR.title||'تقرير منجزات حلقات القرآن الكريم'));
+    if(PR.org) o.push('- **الجهة المنفذة:** '+PR.org);
+    o.push('- **الفترة:** '+per);
+    o.push('- **مقدَّم إلى:** '+(PR.aud||'[الجهة المستهدفة]'));
+    if(PR.by) o.push('- **إعداد:** '+PR.by);
+    o.push('- [شعار الجهة المشرفة] [شعار الجهة المنفذة]');
+    o.push('');
+  }
+  if(PR.sec.exec){
+    o.push('## ملخص تنفيذي');
+    o.push('خلال الفترة من '+f(W[0])+' إلى '+f(W[1])+'، عُقدت حلقات القرآن الكريم ('+hlist+') بمشاركة **'+nSt+' طالبًا** و**'+tList.length+' '+(tList.length===1?'معلم':'معلمين')+'**، في **'+nDays+' '+(nDays===1?'يوم':'أيام')+' تسميع**. '
+      +'وحفظ الطلاب **'+f1(T.ph)+' وجهًا جديدًا** (نحو '+f1(T.ph/20)+' جزء)، وراجعوا **'+f1(T.pr)+' وجهًا**، بنسبة حضور **'+pct(att)+'**'+(avg!=null?' ومتوسط درجات **'+f1(avg)+' من 10**':'')+'.'
+      +(ev.length?' وسُجّل '+(evS.length?evS.length+' إتمامًا لسور كاملة':'')+(evS.length&&evJ.length?' و':'')+(evJ.length?evJ.length+' إتمامًا لأجزاء كاملة':'')+'.':''));
+    o.push(''); o.push('> ملاحظة للمتحدث: ابدأ بشكر الجهة المشرفة، ثم قدّم الرقمين الأبرز: الأوجه المحفوظة ونسبة الحضور.'); o.push('');
+  }
+  if(PR.sec.kpi){
+    o.push('## أرقام رئيسة'); o.push('*(تُعرض كبطاقات مؤشرات كبيرة)*');
+    o.push('- الطلاب المشاركون: **'+nSt+'**'); o.push('- المعلمون: **'+tList.length+'**'); o.push('- الحلقات: **'+hsSel.length+'**');
+    o.push('- أيام التسميع: **'+nDays+'**'); o.push('- حصص التسميع المسجلة: **'+fi(T.pres)+'**');
+    o.push('- الحفظ الجديد: **'+f1(T.ph)+' وجه**'); o.push('- المراجعة: **'+f1(T.pr)+' وجه**');
+    o.push('- نسبة الحضور: **'+pct(att)+'**'); if(avg!=null) o.push('- متوسط الدرجات: **'+f1(avg)+' / 10**'); o.push('');
+  }
+  if(PR.sec.hifz){
+    o.push('## الحفظ والمراجعة');
+    o.push('- مجموع الحفظ الجديد: **'+f1(T.ph)+' وجه** ≈ **'+f1(T.ph/20)+' جزء**');
+    o.push('- مجموع المراجعة: **'+f1(T.pr)+' وجه**، أي ما يعادل **'+(T.ph?f1(T.pr/T.ph):'—')+'** أضعاف الحفظ الجديد');
+    o.push('- المجموع الكلي (حفظًا ومراجعة): **'+f1(T.ph+T.pr)+' وجه**');
+    o.push('- متوسط الحفظ لكل طالب: **'+(L.length?f1(T.ph/L.length):'—')+' وجه**');
+    if(fast) o.push('- أكثر الطلاب حفظًا في الفترة: **'+fast.s.name+'** ('+f1(fast.ph)+' وجه)');
+    o.push('*(رسم مقترح: أعمدة لمقدار الحفظ والمراجعة لكل حلقة)*'); o.push('');
+  }
+  if(PR.sec.att){
+    o.push('## الحضور والانتظام');
+    o.push('- نسبة الحضور العامة: **'+pct(att)+'** ('+fi(T.pres)+' حضور مقابل '+fi(T.abs)+' غياب)');
+    hsSel.forEach(function(n){ var X=L.filter(function(a){ return a.s.h===n; }), p=0,b=0; X.forEach(function(a){ p+=a.pres; b+=a.abs; }); o.push('- حلقة '+n+': '+pct((p+b)?p/(p+b):null)); });
+    o.push('- طلاب منتظمون بلا غياب (5 حصص فأكثر): **'+cnt2('reg')+'**');
+    o.push('*(رسم مقترح: دائرة لنسبة الحضور)*'); o.push('');
+  }
+  if(PR.sec.exam){
+    o.push('## الاختبارات');
+    if(ex.length){ o.push('- عدد الطلاب المختبَرين: **'+ex.length+'**'); o.push('- متوسط درجات الاختبارات: **'+f1(exAvg)+' / 100**');
+      var bands=[[90,'ممتاز'],[80,'جيد جدًا'],[70,'جيد'],[60,'مقبول'],[0,'دون ذلك']];
+      bands.forEach(function(b,i){ var hi=i?bands[i-1][0]:1000, c=ex.filter(function(a){ return a.exAvg>=b[0] && a.exAvg<hi; }).length; if(c) o.push('- '+b[1]+': '+c+' طالبًا'); });
+      o.push('> ملاحظة للمتحدث: نتائج الاختبارات المرصودة حتى تاريخ إعداد التقرير.'); }
+    else o.push('- [لم تُرصد اختبارات في المنصة بعد — أضف ما يلزم أو احذف الشريحة]');
+    o.push('');
+  }
+  if(PR.sec.hal && hsSel.length>1){
+    o.push('## مقارنة الحلقات'); o.push('| الحلقة | الطلاب | الحفظ (وجه) | المراجعة (وجه) | الحضور | متوسط الدرجات |'); o.push('|---|---|---|---|---|---|');
+    hsSel.forEach(function(n){ var X=L.filter(function(a){ return a.s.h===n; }), ph=0,pr=0,p=0,b=0,gs=0,gc=0; X.forEach(function(a){ ph+=a.ph; pr+=a.pr; p+=a.pres; b+=a.abs; a.gs.forEach(function(x){ gs+=x; gc++; }); });
+      o.push('| '+n+' | '+X.length+' | '+f1(ph)+' | '+f1(pr)+' | '+pct((p+b)?p/(p+b):null)+' | '+(gc?f1(gs/gc):'—')+' |'); });
+    o.push('*(رسم مقترح: أعمدة متجاورة للحلقات)*'); o.push('');
+  }
+  if(PR.sec.ach){
+    o.push('## الإنجازات');
+    if(ev.length){ o.push('- إتمام سور كاملة: **'+evS.length+'**'); if(evJ.length) o.push('- إتمام أجزاء كاملة: **'+evJ.length+'**');
+      ev.slice(-8).reverse().forEach(function(e){ o.push('- '+(e.type==='juz'?'🏆 ':'')+e.name+' — أتمّ '+e.label); }); }
+    else o.push('- [لا توجد إتمامات مسجلة في هذه الفترة — أضف ما يلزم أو احذف الشريحة]');
+    o.push('');
+  }
+  if(PR.sec.top){
+    o.push('## المتميزون والأوائل');
+    top.forEach(function(a,i){ o.push((i+1)+'. **'+a.s.name+'** — حلقة '+a.s.h+' — '+f1(a.total)+' وجه (حفظ '+f1(a.ph)+' ومراجعة '+f1(a.pr)+')'+(a.avg!=null?' — متوسط '+f1(a.avg):'')); });
+    o.push('- متميزون في الدرجات (متوسط 9 فأكثر): **'+cnt2('star')+'** | متسارعون في الحفظ: **'+cnt2('fast')+'** | في تحسّن: **'+cnt2('up')+'**');
+    o.push('> ملاحظة للمتحدث: يمكن تكريم الأوائل في ختام العرض.'); o.push('');
+  }
+  if(PR.sec.tch){
+    o.push('## المعلمون'); o.push('شارك في التدريس **'+tList.length+'** '+(tList.length===1?'معلم':'معلمين')+':');
+    tList.forEach(function(t){ o.push('- '+t+' — '+tDays[t]+' '+(tDays[t]===1?'يوم':'أيام')+' تدريس'); });
+    o.push('');
+  }
+  if(PR.sec.plan && CC){
+    var cm=CC.list.filter(function(a){ return sel(a.s.h) && a.cm && a.cm.ratio!=null; }), c={a:0,b:0,c:0,d:0}; cm.forEach(function(a){ c[a.cm.st.k]++; });
+    o.push('## الالتزام بخطط الحفظ'); o.push('*(لكل طالب خطة حفظ بمقدار محدد، ويُقاس كل طالب على خطته — حتى تاريخ التقرير)*');
+    o.push('- متقدمون على خطتهم: **'+c.a+'**'); o.push('- ملتزمون: **'+c.b+'**'); o.push('- متأخرون قليلًا: **'+c.c+'**'); o.push('- متأخرون: **'+c.d+'**');
+    o.push('*(رسم مقترح: دائرة أو أشرطة لتوزيع الالتزام)*'); o.push('');
+  }
+  if(PR.sec.chal){
+    o.push('## التحديات والفرص');
+    if(att!=null && att<0.85) o.push('- نسبة الحضور ('+pct(att)+') دون المستوى المأمول، وتحتاج متابعة.');
+    if(alerts.length) o.push('- '+alerts.length+' '+(alerts.length===1?'طالب':'طلاب')+' بغياب متتالٍ يحتاجون متابعة.');
+    o.push('- [أضف تحديات أخرى: الوقت، المكان، تفاوت المستويات…]');
+    o.push('- فرصة: البناء على '+(cnt2('fast')?cnt2('fast')+' طالبًا متسارعًا في الحفظ':'تميز بعض الطلاب')+' بمسار حفظ متقدم.'); o.push('');
+  }
+  if(PR.sec.rec){
+    o.push('## التوصيات والخطوات القادمة');
+    o.push('- الاستمرار في المتابعة اليومية الرقمية للحفظ والمراجعة والحضور.');
+    if(att!=null && att<0.9) o.push('- تعزيز الحضور بالتواصل مع المتغيبين وتحفيز المنتظمين.');
+    o.push('- عقد اختبارات دورية في المحفوظ ومواضع الضعف.');
+    o.push('- تكريم المتميزين والمتقدمين على خططهم.');
+    o.push('- [أضف توصياتك]'); o.push('');
+  }
+  if((PR.extra||'').trim()){ o.push('## إضافات'); PR.extra.trim().split('\n').forEach(function(x){ if(x.trim()) o.push('- '+x.trim()); }); o.push(''); }
+  if(PR.sec.end){
+    o.push('## شكر وتقدير');
+    o.push('نشكر '+(PR.aud||'الجهة المشرفة')+' على دعمها ورعايتها، والمعلمين على جهودهم، والطلاب على حرصهم.');
+    o.push('﴿وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ فَهَلْ مِن مُّدَّكِرٍ﴾');
+    o.push('- [شعار الجهة المشرفة] [شعار الجهة المنفذة]'); o.push('');
+  }
+  o.push('---');
+  o.push('*مصدر البيانات: منصة رصد التسميع — أُعدّ في '+todayH()+'.*');
+  return o.join('\n');
 }
 
 /* ══════════ التنقل السفلي ══════════ */
@@ -1308,16 +1524,16 @@ function save(next){ HOME=null;
     var bad=pairError('hf','ht','الحفظ')||pairError('rf','rt','المراجعة'); if(bad){ toast(bad,'err'); return; }
   }
   var p={ absent:!!f.absent, hf_s:f.hf_s, hf_a:f.hf_a, ht_s:f.ht_s, ht_a:f.ht_a, rf_s:f.rf_s, rf_a:f.rf_a, rt_s:f.rt_s, rt_a:f.rt_a, grade:f.grade, notes:f.notes||'' };
-  call('waSave',[S.sheet,S.data.dayIdx,s.key,p,S.teacher,s.stamp],function(r){
-    S.data=r; toast('تم الحفظ','ok');
+  call('waSave',[S.sheet,S.data.dayIdx,s.key,p,S.teacher,s.stamp,true],function(lr){ withDay(lr,function(r){
+    toast('تم الحفظ','ok');
     var nx=-1; if(next){ for(var j=cur+1;j<r.students.length;j++) if(!r.students[j].absent){ nx=j; break; } }
     if(next && nx>-1) openStudent(nx); else if(next) showList(); else openStudent(cur);
-  });
+  }); });
 }
 function clearRec(){
   if(!confirm('مسح تسجيل هذا الطالب في هذا اليوم؟')) return;
   var s=S.data.students[S.cur], cur=S.cur;
-  call('waClear',[S.sheet,S.data.dayIdx,s.key,s.stamp],function(r){ S.data=r; toast('تم المسح','ok'); openStudent(cur); });
+  call('waClear',[S.sheet,S.data.dayIdx,s.key,s.stamp,true],function(lr){ withDay(lr,function(){ toast('تم المسح','ok'); openStudent(cur); }); });
 }
 
 /* ══════════ الإدارة ══════════ */
@@ -1525,7 +1741,8 @@ function showToolsTab(h){
     +'<button onclick="runTool(\'protect\')"'+(T.hasProtect?'':' disabled')+'>🛡️ تطبيق الحماية<small>الخلايا الصفراء فقط مفتوحة للمعلمين</small></button>'
     +'<button onclick="runTool(\'freeze\')"'+(T.hasFreeze?'':' disabled')+'>🔒 تجميد الأيام المنتهية<small>بعد مهلة الأيام الأربعة</small></button>'
     +'<button onclick="runTool(\''+(T.trigger?'trigOff':'trigOn')+'\')"'+(T.hasFreeze?'':' disabled')+'>⏰ التجميد التلقائي: '+(T.trigger?'مفعّل':'موقوف')+'<small>'+(T.trigger?'اضغط للإيقاف':'اضغط للتفعيل (6 صباحًا يوميًا)')+'</small></button>'
-    +'<button onclick="runTool(\'rebuild\')">🔢 تحديث معادلات التقارير<small>في أوراق الجدول لتشمل كل الحلقات</small></button></div>';
+    +'<button onclick="runTool(\'rebuild\')">🔢 تحديث معادلات التقارير<small>في أوراق الجدول لتشمل كل الحلقات</small></button>'
+    +'<button onclick="openPres(\'adm\')" style="grid-column:1/-1">📑 مادة عرض تقديمي للجهة المشرفة<small>نص جاهز لبرامج الذكاء الاصطناعي لإنشاء عرض بمنجزات فترة تختارها</small></button></div>';
   if(!T.hasProtect) h+='<div class="note warn" style="margin-top:10px">سكربت الحماية والتجميد غير موجود في المشروع، فبعض الأدوات معطّلة.</div>';
   h+='<div class="note info" style="margin-top:12px">كل الإدارة اليومية تتم من هنا: الطلاب، المدرسون، الحلقات، الأيام، الاختبارات، والخطط. الجدول أرشيف تعود إليه للتحميل أو المراجعة.</div>';
   app(h+'</div>'); actions('');
@@ -1872,7 +2089,7 @@ function showReports(keep){ navSet('rep');
   R.srbs.forEach(function(s){ h+='<option'+(F.srb===s?' selected':'')+'>'+esc(s)+'</option>'; });
   h+='</select></div>';
 
-  h+='<div class="toolbar noprint"><button onclick="openReports()">تحديث</button><button onclick="tvStart()">📺 وضع العرض</button><button onclick="weeklyReport()">📨 أسبوعي</button><button onclick="printHTML(\'التقارير\', $(\'app\').innerHTML)">طباعة / PDF</button></div>';
+  h+='<div class="toolbar noprint"><button onclick="openReports()">تحديث</button><button onclick="tvStart()">📺 وضع العرض</button><button onclick="weeklyReport()">📨 أسبوعي</button><button onclick="openPres(\'rep\')">📑 عرض تقديمي</button><button onclick="printHTML(\'التقارير\', $(\'app\').innerHTML)">طباعة / PDF</button></div>';
 
   /* البطل: الأوجه المحفوظة وشريط الأجزاء */
   var juz=C.T.ph/20;
@@ -2470,7 +2687,7 @@ function toggleAtt(i){ var k=S.data.students[i].key; if(AT[k]) delete AT[k]; els
 function commitAttend(){ HOME=null;
   var d=S.data, lose=d.students.filter(function(s){ return AT[s.key] && s.recorded && !s.absent; });
   if(lose.length && !confirm('هؤلاء مسجّل لهم تسميع اليوم، وسيُمسح تسجيلهم عند رصدهم غائبين:\n'+lose.map(function(s){ return s.name; }).join('\n'))) return;
-  call('waBulkAttendance',[S.sheet, d.dayIdx, Object.keys(AT), S.teacher],function(r){ S.data=r; toast('تم التحضير','ok'); showList(); });
+  call('waBulkAttendance',[S.sheet, d.dayIdx, Object.keys(AT), S.teacher, true],function(lr){ withDay(lr,function(){ toast('تم التحضير','ok'); showList(); }); });
 }
 
 /* ══ مواضع المراجعة المركزة ══ */
