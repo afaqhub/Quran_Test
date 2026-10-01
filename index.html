@@ -231,10 +231,23 @@
   .ses .c{flex:1;min-width:0;font-size:14px}
   .ses .g{font-size:20px;font-weight:700;color:var(--gold);flex:none}
 
-  #loading{position:fixed;inset:0;background:rgba(242,244,241,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:60}
-  #loading div{width:38px;height:38px;border:4px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+  #loading{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:60;background:transparent;transition:background-color .2s}
+  #loading.on{display:flex}
+  #loading.vis{background:rgba(242,244,241,.72);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  html[data-theme="dark"] #loading.vis{background:rgba(14,20,17,.72)}
+  #loading .ldc{display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--white);border:1px solid var(--line);border-radius:22px;
+                padding:24px 26px;min-width:230px;max-width:84%;box-shadow:0 18px 50px rgba(0,0,0,.18);text-align:center;opacity:0;transform:scale(.94);transition:opacity .18s,transform .18s}
+  #loading.vis .ldc{opacity:1;transform:none}
+  #loading .spin{width:46px;height:46px;border:5px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+  #loading .ldt{font-size:16.5px;font-weight:700;color:var(--ink)}
+  #loading .lds{font-size:13px;color:var(--muted);line-height:1.6}
+  #loading .lds.slow{color:#9A6414;font-weight:600}
+  html[data-theme="dark"] #loading .lds.slow{color:#E7C766}
+  #loading .dots i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin:0 2px;animation:ldot 1.2s infinite}
+  #loading .dots i:nth-child(2){animation-delay:.15s}#loading .dots i:nth-child(3){animation-delay:.3s}
+  @keyframes ldot{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
   @keyframes spin{to{transform:rotate(360deg)}}
-  @media (prefers-reduced-motion:reduce){#loading div{animation:none}}
+  @media (prefers-reduced-motion:reduce){#loading .spin,#loading .dots i{animation:none}}
   #toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:var(--ink);color:#fff;
          padding:10px 16px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:70;max-width:90%}
   #toast.show{opacity:1}
@@ -691,7 +704,7 @@
 <main id="app"><div class="empty">جارٍ التحميل…</div></main>
 <div id="actions" class="actions"></div>
 <div id="drawer"></div>
-<div id="loading"><div></div></div>
+<div id="loading" role="status" aria-live="polite"><div class="ldc"><div class="spin"></div><div class="ldt" id="ldt">جارٍ التحميل…</div><div class="dots"><i></i><i></i><i></i></div><div class="lds" id="lds">يرجى الانتظار — لا تضغط مرة أخرى</div></div></div>
 <div id="pbar"><i></i></div>
 <div id="toast"></div>
 <div id="tv"></div>
@@ -706,7 +719,27 @@ var COLORS = ['#1F7A45','#1D5C8C','#9A6414','#6A3D8F','#0F6B63','#8C2F2F'];
 
 function $(id){ return document.getElementById(id); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-function loading(on){ $('loading').style.display = on ? 'flex' : 'none'; }
+/* غطاء التحميل: يمنع أي ضغطة فورًا، ويظهر بوضوح بعد لحظة قصيرة (حتى لا يومض في الردود السريعة) */
+var LD={ n:0, t1:null, t2:null, t3:null };
+function loading(on, title){
+  var el=$('loading'); if(!el) return;
+  if(on){
+    LD.n++;
+    if(title) $('ldt').textContent=title;
+    if(LD.n===1){
+      if(!title) $('ldt').textContent='جارٍ التحميل…';
+      var sub=$('lds'); sub.textContent='يرجى الانتظار — لا تضغط مرة أخرى'; sub.className='lds';
+      el.classList.add('on');
+      clearTimeout(LD.t1); clearTimeout(LD.t2); clearTimeout(LD.t3);
+      LD.t1=setTimeout(function(){ el.classList.add('vis'); },150);
+      LD.t2=setTimeout(function(){ sub.textContent='الاتصال أبطأ قليلًا من المعتاد… سيكتمل تلقائيًا، لا تضغط مرة أخرى'; sub.className='lds slow'; },7000);
+      LD.t3=setTimeout(function(){ sub.textContent='ما زال يعمل… إن لم يكتمل خلال دقيقة فتأكد من اتصال الإنترنت'; },22000);
+    }
+  } else {
+    LD.n=Math.max(0,LD.n-1);
+    if(!LD.n){ clearTimeout(LD.t1); clearTimeout(LD.t2); clearTimeout(LD.t3); el.classList.remove('vis','on'); }
+  }
+}
 function toast(msg,type){ if(type==='ok'){ try{ if(navigator.vibrate) navigator.vibrate(12); }catch(e){} } var t=$('toast'); t.textContent=msg; t.className='show '+(type||''); clearTimeout(t._h); t._h=setTimeout(function(){t.className='';},2800); }
 function mem(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
 function sess(k,v){ try{ if(v===undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k,v); }catch(e){ return null; } }
@@ -754,10 +787,26 @@ function apiCall(fn, args){
 var READS={ waGetInit:1, waHome:1, waGetDay:1, waReports:1, waDailyAttendance:1, waStudentDirectory:1, waQuranData:1, waExamInit:1, waExamCoverage:1 };
 var RSEQ=0, RPEND=0;
 function pbar(on){ var b=$('pbar'); if(b) b.classList.toggle('on',on); }
+/* عبارة التحميل بحسب العملية */
+function ldMsg(fn, args){
+  var a=args||[];
+  var m={ waGetInit:'جارٍ تحميل المنصة…', waGetDay:'جارٍ فتح '+(a[0]||'الحلقة')+'…', waReports:'جارٍ إعداد التقارير…',
+    waDailyAttendance:'جارٍ إعداد التمام اليومي…', waStudentDirectory:'جارٍ تحميل قائمة الطلاب…', waExamInit:'جارٍ تجهيز الاختبار…',
+    waExamCoverage:'جارٍ تجهيز مقدار الاختبار…', waSave:'جارٍ حفظ التسميع…', waClear:'جارٍ مسح التسجيل…', waBulkAttendance:'جارٍ اعتماد التحضير…',
+    waExamSave:'جارٍ حفظ درجة الاختبار…', waFocusAdd:'جارٍ رصد الموضع…', waFocusDone:'جارٍ التحديث…', waPlanSave:'جارٍ حفظ الخطة…', waPlanAmount:'جارٍ حفظ الخطة…',
+    waAdminData:'جارٍ فتح الإدارة…', waAdminDays:'جارٍ تحميل الأيام…', waAdminHalaqat:'جارٍ تحميل الحلقات…', waAdminTools:'جارٍ تحميل الأدوات…',
+    waAdminAddHalaqah:'جارٍ إنشاء الحلقة… قد يستغرق دقيقة', waAdminAddDays:'جارٍ إضافة الأيام…', waAdminTransferStudent:'جارٍ نقل الطالب…' }[fn];
+  return m || (fn.indexOf('waAdmin')===0 ? 'جارٍ التنفيذ…' : 'جارٍ التحميل…');
+}
+var BG={ waHome:1 };          // تحديثات خلفية خفيفة لا تحجب الشاشة
+var INFLIGHT={};
 function call(fn, args, ok, fail){
-  var isRead=!!READS[fn], tok=isRead?++RSEQ:0;
-  if(isRead){ RPEND++; pbar(true); } else loading(true);
-  var done=function(){ if(isRead){ RPEND=Math.max(0,RPEND-1); if(!RPEND) pbar(false); } else loading(false); };
+  var key=fn+'|'+JSON.stringify(args||[]);
+  if(INFLIGHT[key]) return;                       // الطلب نفسه ما زال قيد التنفيذ: تجاهل الضغطة المكررة
+  INFLIGHT[key]=1;
+  var isRead=!!READS[fn], bg=!!BG[fn], tok=isRead?++RSEQ:0;
+  if(bg){ RPEND++; pbar(true); } else loading(true, ldMsg(fn,args));
+  var done=function(){ delete INFLIGHT[key]; if(bg){ RPEND=Math.max(0,RPEND-1); if(!RPEND) pbar(false); } else loading(false); };
   apiCall(fn, args).then(function(x){
     done(); if(isRead && tok!==RSEQ) return; ok(x);
   }, function(e){
