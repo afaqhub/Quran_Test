@@ -4,8 +4,8 @@
 <base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<!-- نافذة التسميع — فكرة المنصة وتصميمها وتطويرها: جهاد بن جمال حولدار | Conceived, designed & developed by Jehad Bin Jamal Hawldar -->
-<meta name="author" content="جهاد بن جمال حولدار — Jehad Bin Jamal Hawldar">
+<!-- نافذة التسميع — فكرة المنصة وتصميمها وتطويرها: جهاد بن جمال حولدار | Conceived, designed & developed by Jehad Bin Jamal Holdar -->
+<meta name="author" content="جهاد بن جمال حولدار — Jehad Bin Jamal Holdar">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1099,8 +1099,8 @@ function homeHTML(){
     +'<div class="nm"><b>نافذة التسميع</b><small>منصة متابعة حلقات القرآن الكريم</small></div>'
     +(S.teacher?'<div class="who2" onclick="showWho()">👤 '+esc(S.teacher)+'<button onclick="event.stopPropagation();showWho()">تغيير المعلم</button></div>'
                :'<div class="who2" onclick="showWho()">بلا اسم<button onclick="event.stopPropagation();showWho()">اختيار المعلم</button></div>')+'</div>'
-    +'<div class="r2">📅 '+esc(d)+'<span id="hstat"></span></div><div class="sig">تصميم المنصة وتطويرها: جهاد بن جمال حولدار — Jehad Bin Jamal Hawldar</div></section>'
-    +'<button class="searchbtn" onclick="SD.q=\'\';showStudents(true)">🔍 ابحث عن طالب بالاسم أو الرقم</button>'
+    +'<div class="r2">📅 '+esc(d)+'<span id="hstat"></span></div><div class="sig">تصميم المنصة وتطويرها: جهاد بن جمال حولدار — Jehad Bin Jamal Holdar</div></section>'
+
     + homeBody() + '</div>';
   return h;
 }
@@ -1117,18 +1117,20 @@ function homeBody(){
   var L=null;
   if(H && !live){ var ld=''; H.halaqat.forEach(function(x){ if(x.last && x.last.date>ld) ld=x.last.date; });
     if(ld){ L={date:ld,hijri:'',rec:0,ab:0,pages:0}; H.halaqat.forEach(function(x){ if(x.last && x.last.date===ld){ L.hijri=x.last.hijri; L.rec+=x.last.recited; L.ab+=x.last.absent; L.pages+=x.last.pages; } }); } }
-  var h='<div id="hwrap">';
+  var h='', _stats='', _resume='', _alerts='', _hal='';
   if(L){ var wd=''; try{ wd=hfmt(pd(L.date),{weekday:'long'}); }catch(e){}
     h+='<div class="lastsum">📋 ملخص آخر حصة — <b>'+esc(wd)+' '+esc(L.hijri)+'</b></div>'; }
   var st4 = live||!H ? [[T?fi(T.students):'00','طالب',''],[T?fi(T.recited):'00','سُمّعوا اليوم','p'],[T?fi(T.pending):'00','بانتظار التسميع','w'],[T?fi(T.absent):'00','غياب اليوم','a']]
            : L ? [[fi(T.students),'طالب',''],[fi(L.rec),'سُمّعوا','p'],[f1(L.pages),'وجهًا حفظًا','w'],[fi(L.ab),'غائبون','a']]
            : [[fi(T.students),'طالب',''],['—','لا حصص بعد','p'],['—','','w'],['—','','a']];
   h+='<div class="stats">'+st4.map(function(x){ return '<div class="stat '+x[2]+'"><b class="'+sk+'">'+x[0]+'</b><span>'+x[1]+'</span></div>'; }).join('')+'</div>';
+  _stats=h; h='';
   if(H){
     var lh=String(mem('wa_lastHal')||'').replace(/^حلقة\s+/,''), rs=null;
     H.halaqat.forEach(function(x){ if(x.today && x.pending>0 && (x.name===lh || (!lh && !rs))) rs=x; });
     if(rs){ var ri=halIdx(rs.name);
       if(ri>-1) h+='<button class="resume" onclick="pickHalaqah('+ri+')"><span style="font-size:26px">▶</span><span><b>متابعة التسميع — حلقة '+esc(rs.name)+'</b><small>سُمّع '+rs.recited+' — بقي '+rs.pending+' بانتظار التسميع</small></span><span class="go2">متابعة</span></button>'; }
+    _resume=h; h='';
     /* التنبيهات مجمّعة: بطاقة لكل نوع، تُفتح لعرض الأسماء */
     var G=[], none=[], sts=[];
     H.halaqat.forEach(function(x){
@@ -1145,6 +1147,7 @@ function homeBody(){
     if(G.length) h+='<div class="alerts"><div class="sect"><h2>تنبيهات</h2><i></i></div>'
       + G.map(function(g){ return '<details class="agrp"><summary><span class="ai-ic">'+g[0]+'</span><b>'+g[1]+'</b><span class="abadge">'+g[2]+'</span></summary><div class="alist">'+g[3]+'</div></details>'; }).join('')+'</div>';
   }
+  _alerts=h; h='';
   /* الحلقات: المسندة للمعلم أولًا، والبقية في «حلقات أخرى» */
   var mine=(S.teacher && S.init.tmap && S.init.tmap[S.teacher])||[], card=function(nm,i){
     var n=String(nm).replace(/^حلقة\s+/,''), o=null; if(H) H.halaqat.forEach(function(x){ if(x.name===n) o=x; });
@@ -1161,6 +1164,7 @@ function homeBody(){
   } else {
     h+='<div class="sect"><h2>الحلقات</h2><i></i>'+(S.init.halaqat.length>10?'<button class="linkb" onclick="SD.q=\'\';showStudents(true)">بحث</button>':'')+'</div><div class="hcards">'+other.map(function(i){ return card(S.init.halaqat[i],i); }).join('')+'</div>';
   }
+  _hal=h; h='';
   h+='<div class="sect"><h2>الإدارة والتحليلات</h2><i></i></div><div class="mtiles">'
     +'<button class="mt" onclick="openLive()" style="grid-column:1/-1;background:linear-gradient(135deg,#0B2A1A,#1F7A45);color:#fff;border-color:#0B2A1A"><span class="ic2" style="background:rgba(255,255,255,.14)">📡</span><span><b style="color:#F0D27A">الواجهة الحية</b><small style="color:#CFE6D6">البث المباشر للحلقات، وعرض الإنجاز في أي وقت</small></span></button>'
     +'<button class="mt gold" onclick="openLive(\'medals\')"><span class="ic2">🏅</span><span><b>محطات البرنامج</b><small>إنجازات بتواريخها</small></span></button>'
@@ -1169,6 +1173,8 @@ function homeBody(){
     +(S.init.exams?'<button class="mt gold" onclick="openExam()"><span class="ic2">📝</span><span><b>اختبار طالب</b><small>مقاطع وحساب آلي</small></span></button>':'')
     +'<button class="mt red" onclick="openAdmin()"><span class="ic2">⚙️</span><span><b>الإدارة</b><small>طلاب وحلقات وأيام</small></span></button>'
     +'</div></div>';
+  /* الترتيب: الحلقات أولًا (أول ما يحتاجه المعلم)، ثم المتابعة، ثم البحث، ثم الملخص، ثم التنبيهات، ثم الإدارة */
+  h='<div id="hwrap">'+_hal+_resume+'<button class="searchbtn" onclick="SD.q=\'\';showStudents(true)">🔍 ابحث عن طالب بالاسم أو الرقم</button>'+_stats+_alerts+h;
   setTimeout(function(){
     var el=$('hstat'); if(!el||!HOME) return;
     el.innerHTML = live ? (HOME.t.pending ? '<span class="pill o">اليوم: بقي '+HOME.t.pending+' لم يُسمّعوا</span>' : '<span class="pill g">✓ اكتمل تسميع اليوم</span>')
@@ -1184,11 +1190,11 @@ function sigTap(){
   var dr=$('drawer');
   dr.innerHTML='<div class="dh"><b>حول المنصة</b><button onclick="closeProfile()">إغلاق</button></div><main style="text-align:center">'
     +'<div style="font-size:46px;margin:8px 0">📖</div><h3 style="margin:0 0 6px;color:var(--green)">نافذة التسميع</h3><div class="muted" style="margin-bottom:16px">منصة متابعة حلقات القرآن الكريم</div>'
-    +'<div class="note info" style="font-size:15.5px;line-height:2">فكرة المنصة وتصميمها وتطويرها<br><b style="font-size:19px">جهاد بن جمال حولدار</b><br><span dir="ltr">Jehad Bin Jamal Hawldar</span></div>'
+    +'<div class="note info" style="font-size:15.5px;line-height:2">فكرة المنصة وتصميمها وتطويرها<br><b style="font-size:19px">جهاد بن جمال حولدار</b><br><span dir="ltr">Jehad Bin Jamal Holdar</span></div>'
     +'<div class="muted" style="font-size:12px">جميع الحقوق محفوظة — 1448هـ</div></main>';
   dr.classList.add('open');
 }
-try{ console.log('%cنافذة التسميع — فكرة المنصة وتصميمها وتطويرها: جهاد بن جمال حولدار | Jehad Bin Jamal Hawldar','color:#1F7A45;font-weight:bold'); }catch(e){}
+try{ console.log('%cنافذة التسميع — فكرة المنصة وتصميمها وتطويرها: جهاد بن جمال حولدار | Jehad Bin Jamal Holdar','color:#1F7A45;font-weight:bold'); }catch(e){}
 function halIdx(n){ var k=-1; S.init.halaqat.forEach(function(nm,i){ if(String(nm).replace(/^حلقة\s+/,'')===n) k=i; }); return k; }
 function goRecs(){ A.tab='rc'; A.recs=null; openAdmin(); }
 function filterHal(q){ q=(q||'').trim(); document.querySelectorAll('#hlist .halaqah').forEach(function(b){ b.style.display=(!q||b.getAttribute('data-n').indexOf(q)>-1)?'':'none'; }); }
@@ -1676,7 +1682,7 @@ function presRange(){
   return [from,t2];
 }
 function showPres(){
-  header('تقرير المنجزات','نص جاهز لبرامج الذكاء الاصطناعي', function(){ PR.back==='adm'?showAdmin():showReports(false); }); actions('');
+  header('📑 التقارير والعروض','العرض الجاهز PDF ونصوص التقارير', function(){ PR.back==='adm'?showAdmin():showReports(false); }); actions('');
   var hs=R.hs, h='<div class="narrow">';
   h+='<button class="quickbar" style="background:linear-gradient(135deg,#0F2B5B,#14408F);color:#fff" onclick="openDeck()">🖼️ العرض الجاهز بالهوية المعتمدة — عدّل وصدّر PDF مباشرة</button>';
   h+='<div class="block"><h2>نوع المادة</h2><div class="seg" style="flex-wrap:wrap">'
@@ -2107,7 +2113,8 @@ var DKBASE={ title:'تقرير منجزات حلقات القرآن الكريم
   to:'سعادة قائد معهد الدراسات الفنية للقوات الجوية', thanks:'نشكر سعادة قائد معهد الدراسات الفنية للقوات الجوية على دعمه المستمر ورعايته الكريمة لإقامة حلقات القرآن الكريم.',
   fh:'Cairo', fb:'Cairo', topN:5, order:null, on:{}, hide:{}, custom:{}, edits:{}, lr:'', ll:'' };
 /* توقيع دقيق (ميكروبرنت) يظهر كخيط ذهبي رفيع، ويُقرأ بالتكبير في الملف أو بالعدسة على الورق */
-var DKSIG='فكرة المنصة وتصميمها وتطويرها: جهاد بن جمال حولدار • Platform conceived, designed & developed by Jehad Bin Jamal Hawldar • ';
+/* بصمة: «جهاد بن جمال» مرة واحدة بخط صغير، بأزرق قريب جدًا من خلفية صفحة الختام الداكنة، في زاويتها السفلى */
+var DKTN='<span class="tn" aria-hidden="true">جهاد بن جمال</span>';
 var DK=null;
 function dkFontsHref(){ return 'https://fonts.googleapis.com/css2?'+DKFONTS.map(function(f){ return 'family='+f.replace(/ /g,'+')+':wght@400;700'; }).join('&')+'&family=Amiri+Quran&display=swap'; }
 function dkPinned(){ return (S.init && S.init.deckDef) || {}; }
@@ -2169,7 +2176,7 @@ function dkSetLogo(side,inp){
 function dkReset(keep){ if(!keep && !confirm('إعادة توليد نصوص كل الشرائح من البيانات؟ ستُلغى تعديلاتك على نصوصها.')) return; DK.edits={}; dkSave(); showDeck(); }
 function dkFit(){ var w=document.getElementById('dkwrap'); if(!w) return; var k=Math.min(1,(w.clientWidth)/1280); w.style.setProperty('--k',k);
   [].forEach.call(w.querySelectorAll('.dkbox'),function(b){ b.style.height=(720*k)+'px'; }); }
-function dkEdit(el){ var sl=el.closest('.slide'); if(!sl) return; var c=sl.cloneNode(true); [].forEach.call(c.querySelectorAll('.mp'),function(x){ x.remove(); }); DK.edits[sl.getAttribute('data-k')]=c.innerHTML; dkSave(); }
+function dkEdit(el){ var sl=el.closest('.slide'); if(!sl) return; var c=sl.cloneNode(true); [].forEach.call(c.querySelectorAll('.mp,.orn,.hid,.tn'),function(x){ x.remove(); }); DK.edits[sl.getAttribute('data-k')]=c.innerHTML; dkSave(); }
 function dkMove(k,d){ var o=DK.order, i=o.indexOf(k), j=i+d; if(i<0||j<0||j>=o.length) return; o.splice(i,1); o.splice(j,0,k); dkSave(); showDeck(); setTimeout(function(){ var e=document.querySelector('.dkbar[data-k="'+k+'"]'); if(e) e.scrollIntoView({block:'center'}); },60); }
 function dkPart(k,id){ var h=DK.hide[k]||(DK.hide[k]={}); h[id]=!h[id]; delete DK.edits[k]; dkSave(); showDeck(); setTimeout(function(){ var e=document.querySelector('.dkbar[data-k="'+k+'"]'); if(e) e.scrollIntoView({block:'center'}); },60); }
 function dkOn(k){ DK.on[k]=!DK.on[k]; dkSave(); showDeck(); setTimeout(function(){ var e=document.querySelector('.dkbar[data-k="'+k+'"]'); if(e) e.scrollIntoView({block:'center'}); },60); }
@@ -2267,7 +2274,7 @@ function dkRender(forPrint){
     SL['c_'+id]={ html:(c.t?(c.dark?'<div class="sh"><img class="lg" src="'+esc(dkLogo('r'))+'"><h2 style="color:#E7C04E"'+CE+'>'+esc(c.t)+'</h2></div>':head(esc(c.t))):'')+body, cls:c.dark?'dark':'' };
   });
   /* التجميع بالترتيب */
-  var out=[], num=0, mp='<div class="mp" aria-hidden="true">'+esc(new Array(9).join(DKSIG))+'</div>';
+  var out=[], num=0, mark=function(k){ return k==='end' ? DKTN : ''; };
   DK.order.forEach(function(k){
     var sl=SL[k]; if(!sl) return;
     var on=!!DK.on[k]; if(forPrint && !on) return; num++;
@@ -2281,7 +2288,7 @@ function dkRender(forPrint){
         +(k==='top'&&on?'<select onchange="DK.topN=+this.value;delete DK.edits.top;dkSave();showDeck()">'+[3,5,7,10].map(function(n){ return '<option value="'+n+'"'+((+DK.topN||5)===n?' selected':'')+'>أول '+n+'</option>'; }).join('')+'</select>':'')
         +(parts.length&&on?'<div class="dkparts">'+parts.map(function(p2){ var off=DK.hide[k]&&DK.hide[k][p2[0]]; return '<button class="'+(off?'off':'')+'" onclick="dkPart(\''+k+'\',\''+p2[0]+'\')">'+(off?'＋ ':'✓ ')+esc(p2[1])+'</button>'; }).join('')+'</div>':'')+'</div>');
     }
-    out.push('<div class="dkbox'+(on?'':' dkoff')+'"><div class="slide '+sl.cls+'" data-k="'+k+'">'+body+mp+'</div></div>');
+    out.push('<div class="dkbox'+(on?'':' dkoff')+'"><div class="slide '+sl.cls+'" data-k="'+k+'">'+body+mark(k)+'</div></div>');
   });
   return out.join('') || '<div class="empty">لا توجد صفحات</div>';
 }
@@ -2297,8 +2304,7 @@ function dkCSS(){
    +'.slide .two2.one{grid-template-columns:1fr}.slide .rank.n7>div,.slide .rank.n10>div{padding:4px 12px}.slide .rank.n10 .n{width:38px;height:38px;font-size:20px}.slide .rank.n10 b{font-size:20px}.slide .rank.n10 .v,.slide .rank.n10 .av{font-size:15px;padding:4px 12px}.slide .rank.n10{gap:6px}.slide .rank.n7{gap:9px}'
    +'.slide .ctx{font-size:27px;line-height:1.8}.slide .cp{margin:0 0 14px}.slide .cul{list-style:none;margin:0;padding:0}.slide .cul li{position:relative;padding-inline-start:38px;margin-bottom:12px}.slide .cul li::before{content:"";position:absolute;right:0;top:16px;width:16px;height:16px;border-radius:4px;background:#D4A72C;transform:rotate(45deg)}'
    +'.slide.dark .ctx{color:#fff}.slide .qt{text-align:center;margin-top:60px}.slide .qt p{font-size:40px;line-height:1.7;margin:0 60px 26px;font-family:var(--fh,Cairo)}.slide .qt span{font-size:26px;color:#C99A1E;font-weight:700}.slide.dark .qt span{color:#E7C04E}'
-   +'.slide .mp{position:absolute;left:60px;right:60px;bottom:12px;height:4px;overflow:hidden;white-space:nowrap;direction:rtl;font:3.1px/4px Arial,"Segoe UI",sans-serif;letter-spacing:.15px;color:#C9A23A;user-select:text;pointer-events:none}'
-   +'.slide.dark .mp{color:#B8963A}'
+   +'.slide .tn{position:absolute;left:18px;bottom:10px;font:9px/11px Arial,"Segoe UI",sans-serif;color:#1A3B74;white-space:nowrap;pointer-events:none}'
    +'.slide .lg{width:84px;height:84px;object-fit:contain}'
    +'.slide .cr{position:absolute;top:38px;right:52px;width:200px;height:200px}.slide .cl{position:absolute;top:38px;left:52px;width:200px;height:200px}'
    +'.slide .ct{position:absolute;top:300px;left:0;right:0;text-align:center}.slide .ct h1{font-size:64px;font-weight:900;color:#E7C04E;margin:0 0 18px}.slide .ct h3{font-size:36px;font-weight:500;margin:0}'
@@ -2337,7 +2343,7 @@ function dkExport(){
   var w=window.open('','_blank'); if(!w){ toast('اسمح بفتح النوافذ المنبثقة لتصدير PDF','err'); return; }
   w.document.open();
   w.document.write('<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>'+esc(DK.title)+'</title>'
-    +'<meta name="author" content="Jehad Bin Jamal Hawldar — جهاد بن جمال حولدار"><link rel="stylesheet" href="'+dkFontsHref()+'">'
+    +'<meta name="author" content="Jehad Bin Jamal Holdar — جهاد بن جمال حولدار"><link rel="stylesheet" href="'+dkFontsHref()+'">'
     +'<style>@page{size:1280px 720px;margin:0}html,body{margin:0;background:#fff}'+dkCSS()+'.dkbox{width:1280px!important;height:720px!important;margin:0!important;border-radius:0!important;box-shadow:none!important;page-break-after:always;break-after:page}.dkbox:last-child{page-break-after:auto}.slide{transform:none!important}'
     +'*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{--fh:\''+DK.fh+'\';--fb:\''+DK.fb+'\'}</style></head><body>'+html
     +'<scr'+'ipt>(document.fonts?document.fonts.ready:Promise.resolve()).then(function(){ setTimeout(function(){ window.print(); },700); });</scr'+'ipt></body></html>');
@@ -3138,7 +3144,7 @@ function showToolsTab(h){
     +'<button onclick="runTool(\''+(T.trigger?'trigOff':'trigOn')+'\')"'+(T.hasFreeze?'':' disabled')+'>⏰ التجميد التلقائي: '+(T.trigger?'مفعّل':'موقوف')+'<small>'+(T.trigger?'اضغط للإيقاف':'اضغط للتفعيل (6 صباحًا يوميًا)')+'</small></button>'
     +'<button onclick="runTool(\'rebuild\')">🔢 تحديث معادلات التقارير<small>في أوراق الجدول لتشمل كل الحلقات</small></button>'
     +'<button onclick="openAudit()" style="grid-column:1/-1">🔍 فحص السجلات الناقصة<small>درجة بلا تسميع، أو مقطع ناقص، أو تسميع بلا درجة — مع زر للتصحيح</small></button>'
-    +'<button onclick="openPres(\'adm\')" style="grid-column:1/-1">📑 مادة عرض تقديمي للجهة المشرفة<small>نص جاهز لبرامج الذكاء الاصطناعي لإنشاء عرض بمنجزات فترة تختارها</small></button></div>';
+    +'<button onclick="openPres(\'adm\')" style="grid-column:1/-1">📑 التقارير والعروض<small>العرض الجاهز (PDF) بالهوية المعتمدة، ونصوص التقارير لبرامج الذكاء الاصطناعي</small></button></div>';
   if(!T.hasProtect) h+='<div class="note warn" style="margin-top:10px">سكربت الحماية والتجميد غير موجود في المشروع، فبعض الأدوات معطّلة.</div>';
   h+='<div class="note info" style="margin-top:12px">كل الإدارة اليومية تتم من هنا: الطلاب، المدرسون، الحلقات، الأيام، الاختبارات، والخطط. الجدول أرشيف تعود إليه للتحميل أو المراجعة.</div>';
   app(h+'</div>'); actions('');
@@ -3494,7 +3500,7 @@ function showReports(keep){ navSet('rep');
   R.srbs.forEach(function(s){ h+='<option'+(F.srb===s?' selected':'')+'>'+esc(s)+'</option>'; });
   h+='</select></div>';
 
-  h+='<div class="toolbar noprint"><button onclick="openReports()">تحديث</button><button onclick="tvStart()">📺 وضع العرض</button><button onclick="weeklyReport()">📨 أسبوعي</button><button onclick="openPres(\'rep\')">📑 عرض تقديمي</button><button onclick="printHTML(\'التقارير\', $(\'app\').innerHTML)">طباعة / PDF</button></div>';
+  h+='<div class="toolbar noprint"><button onclick="openReports()">تحديث</button><button onclick="tvStart()">📺 وضع العرض</button><button onclick="weeklyReport()">📨 أسبوعي</button><button onclick="openPres(\'rep\')">📑 التقارير والعروض</button><button onclick="printHTML(\'التقارير\', $(\'app\').innerHTML)">طباعة / PDF</button></div>';
 
   /* البطل: الأوجه المحفوظة وشريط الأجزاء */
   var juz=C.T.ph/20;
