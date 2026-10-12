@@ -75,7 +75,16 @@
   .student.done{border-color:#B9D9C4}
   .student .n{width:30px;text-align:center;color:var(--muted);font-weight:600}
   .student .who{flex:1;min-width:0}
-  .student .who b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .student .who b{display:block;font-size:16.5px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
+  .student .who .lr{display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:2px}
+  .student .who .lr b{display:inline;font-size:12.5px;color:var(--ink);font-weight:600}
+  .lsearch{position:relative;margin:0 0 10px}.lsearch input{width:100%;padding-inline-start:38px}.lsearch span{position:absolute;top:50%;transform:translateY(-50%);inset-inline-start:12px;color:var(--muted)}
+  .spick{width:100%;text-align:right;background:var(--white);border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;font-size:15px;color:var(--ink);display:flex;justify-content:space-between;align-items:center}
+  .spick:disabled{opacity:.6}.spick small{color:var(--muted)}
+  .slist button{display:flex;width:100%;justify-content:space-between;align-items:center;text-align:right;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:6px;font-size:15.5px;color:var(--ink)}
+  .slist button.cur{border-color:var(--green2);background:var(--mint)}.slist small{color:var(--muted);font-size:12px}
+  .sdcard .lr2{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.6}.sdcard .lr2 b{color:var(--ink);font-weight:600}
+  .arow .who b.lnk{color:var(--blue);text-decoration:underline;cursor:pointer}
   .student .who small{color:var(--muted)}
   .tag{font-size:13px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
   .tag.ok{background:var(--mint);color:var(--green)}
@@ -636,8 +645,8 @@
   #pbar.on{display:block}
   #pbar i{position:absolute;top:0;height:100%;width:40%;background:var(--gold);border-radius:3px;animation:pbarMove 1s ease-in-out infinite}
   @keyframes pbarMove{from{right:-40%}to{right:100%}}
-  .who{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
-  .who b{display:block;font-size:18px;margin-bottom:4px}
+  .whobox{background:var(--white);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+  .whobox b{display:block;font-size:18px;margin-bottom:4px}
   .idline{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);margin:-6px 2px 12px}
   .idline b{color:var(--ink)}
   .idline button{background:none;border:0;color:var(--blue);font-weight:700;text-decoration:underline;padding:4px}
@@ -1043,7 +1052,7 @@ function startApp(r){ S.init=r; if(loadIdentity()) showHome(); else showWho(); }
 function showKey(msg){
   document.body.classList.remove('hasnav');
   header('نافذة التسميع','الدخول أول مرة',null); actions('');
-  app('<div class="narrow"><div class="who"><b>رمز الدخول</b>'
+  app('<div class="narrow"><div class="whobox"><b>رمز الدخول</b>'
     +'<small class="muted">اكتب الرمز الذي زوّدك به المشرف. يُحفظ في هذا الجهاز مرة واحدة فقط، ولن تُسأل عنه مجددًا.</small></div>'
     +(msg?'<div class="note warn">'+esc(msg)+'</div>':'')
     +'<div class="field"><label>الرمز</label><input type="text" id="keyin" autocomplete="off" placeholder="مثال: quran1448" value=""></div>'
@@ -1073,7 +1082,7 @@ function showWho(){
   if(known) document.body.classList.add('hasnav'); else document.body.classList.remove('hasnav');
   header(known?'تغيير المعلم':'أهلًا وسهلًا','من المعلم الذي يستخدم هذا الجهاز؟', known?function(){ S.pendingSheet=null; showHome(); }:null); actions('');
   var h='<div class="narrow">'+(known?'<div class="note info">اختر اسمًا آخر، أو اضغط «رجوع» في الأعلى دون تغيير شيء.</div>':'')
-    +'<div class="who"><b>اختر اسمك أنت (المعلم)</b><small class="muted">هذه أسماء المعلمين وليست أسماء الطلاب. يُحفظ اختيارك في جهازك فلا تُسأل عنه مرة أخرى، ويُسجَّل باسمك التسميع والتحضير والاختبارات. ويمكن تغييره من الشاشة الرئيسية.</small></div>';
+    +'<div class="whobox"><b>اختر اسمك أنت (المعلم)</b><small class="muted">هذه أسماء المعلمين وليست أسماء الطلاب. يُحفظ اختيارك في جهازك فلا تُسأل عنه مرة أخرى، ويُسجَّل باسمك التسميع والتحضير والاختبارات. ويمكن تغييره من الشاشة الرئيسية.</small></div>';
   S.init.teachers.forEach(function(t,i){ h+='<button class="pick'+(t===S.teacher?' main':'')+'" onclick="setIdentity('+i+')">👤 '+esc(t)+(t===S.teacher?' ✓ (الحالي)':'')+'</button>'; });
   if(!S.init.teachers.length) h+='<div class="empty">لا يوجد معلمون بعد — أضفهم من الإدارة</div>';
   h+='<button class="pick" style="margin-top:14px;color:var(--muted)" onclick="noIdentity()">لست معلمًا (مشرف أو إداري) — متابعة</button></div>';
@@ -2541,6 +2550,7 @@ function renderStd(){
     h+='<div class="sdcard"><div class="t"><b>'+hl(x.name,q)+'</b><span class="tag ok">حلقة '+esc(x.h)+'</span></div>'
       +'<div class="meta2"><span>الرقم العسكري '+(x.mil.indexOf(q)>-1&&q?'<mark>'+m+'</mark>':m)+'</span>'+(x.srb?'<span>السرب '+esc(x.srb)+'</span>':'')+(x.m?'<span>م '+x.m+'</span>':'')+(x.plan?planLvTag(x.plan):'')+'</div>'
       +(x.start?'<small>'+esc(x.start)+'</small>':'')
+      +(x.last?'<div class="lr2">آخر تسميع ('+esc(x.last.hj||'')+'): '+(x.last.hf?'حفظ <b>'+esc(x.last.hf)+'</b>':'')+(x.last.rf?(x.last.hf?' · ':'')+'مراجعة <b>'+esc(x.last.rf)+'</b>':'')+(x.last.g!==''&&x.last.g!=null?' · الدرجة <b>'+esc(String(x.last.g))+'</b>':'')+'</div>':'<div class="lr2">لم يُسجَّل له تسميع بعد</div>')
       +'<div class="sdact"><button onclick="stdProfile(\''+m+'\')">📄 الملف</button><button onclick="stdRecite(\''+m+'\')">✍️ تسميع</button>'
       +'<button onclick="stdExam(\''+m+'\')">📝 اختبار</button><button onclick="stdShare(\''+m+'\')">📤 إنجازه</button><button onclick="recFromDir(\''+m+'\')">⭐ توصية</button></div></div>';
   });
@@ -2707,6 +2717,7 @@ function showList(){ navSet('hal');
   if(d.day.editable && d.students.length) h = '<button class="attbar" onclick="showAttend()">✅ تحضير الحلقة / رصد الغياب السريع</button>' + h;
   if(d.day.editable && d.students.some(function(x){ return !x.absent && !x.recorded; })) h = '<button class="quickbar" onclick="showQuick()">⚡ التسميع السريع — تسجيل الطالب بضغطة واحدة</button>' + h;
   if(d.students.some(function(s){ return s.recorded; })) h += '<button class="linkb" style="margin:-4px 0 10px" onclick="sessionReport()">📤 تقرير الحصة (نسخ أو إرسال للمشرف)</button>';
+  if(d.students.length>5) h += '<div class="lsearch"><span>🔍</span><input type="search" id="lq" placeholder="ابحث في الحلقة بالاسم أو الرقم" value="'+esc(S.lq||'')+'" oninput="S.lq=this.value;filterList()"></div>';
   var order=d.students.map(function(s,i){ return i; }), absList=order.filter(function(i){ return d.students[i].absent; });
   order=order.filter(function(i){ return !d.students[i].absent; }).concat(absList);
   order.forEach(function(i,pos){
@@ -2717,11 +2728,27 @@ function showList(){ navSet('hal');
     else if(s.grade !== '' && s.grade != null) tag = '<span class="tag ok">'+esc(s.grade)+' / 10</span>';
     else if(s.recorded) tag = '<span class="tag ok">مسجّل</span>';
     else tag = d.day.editable ? '<span class="tag wait">'+(s.present?'حاضر — ':'')+'بانتظار التسميع</span>' : '<span class="tag none">لم يُسجّل</span>';
-    h += '<div class="student '+(s.absent?'st-a absrow':s.recorded?'st-d':'st-w')+'" onclick="openStudent('+i+')"><div class="n">'+esc(s.m)+'</div>'
-       + '<button class="pf" title="ملف الطالب" onclick="event.stopPropagation();stdProfile(\''+esc(s.mil)+'\')">📄</button><div class="who"><b>'+esc(s.name)+(s.star?' 🌟':'')+(s.fast?' 🚀':'')+(s.focus&&s.focus.length?' <span class="ftag">🎯'+s.focus.length+'</span>':'')+'</b><small>'+esc(s.mil)+'</small>'+(s.abs&&s.abs.alert?'<span class="absflag">غياب متكرر</span>':'')+'</div>'+tag+'</div>';
+    h += '<div class="student '+(s.absent?'st-a absrow':s.recorded?'st-d':'st-w')+'" data-q="'+esc(normAr(s.name)+' '+s.mil+' '+s.m)+'" onclick="openStudent('+i+')"><div class="n">'+esc(s.m)+'</div>'
+       + '<button class="pf" title="ملف الطالب" onclick="event.stopPropagation();stdProfile(\''+esc(s.mil)+'\')">📄</button><div class="who"><b>'+esc(s.name)+(s.star?' 🌟':'')+(s.fast?' 🚀':'')+(s.focus&&s.focus.length?' <span class="ftag">🎯'+s.focus.length+'</span>':'')+'</b><small>'+esc(s.mil)+'</small>'+lastLine(s)+(s.abs&&s.abs.alert?'<span class="absflag">غياب متكرر</span>':'')+'</div>'+tag+'</div>';
   });
   if(!d.students.length) h += '<div class="empty">لا يوجد طلاب في هذه الحلقة — أضفهم من صفحة الإدارة</div>';
-  app(h+'</div>'); checkSessionDone();
+  app(h+'</div>'); if(S.lq) filterList(); checkSessionDone();
+}
+/* آخر تسميع للطالب: اليوم إن سُجّل، وإلا آخر حصة سابقة */
+function rngTxt(fs,fa,ts,ta){ if(!fs) return ''; try{ if(Q){ var P=rangeParts(fs,fa,ts,ta); if(P) return partsLabel(P)+' ('+(fa||'')+(ts&&ts!==fs?'':'–'+(ta||''))+')'; } }catch(e){} return fs+' '+(fa||'')+(ts?' ← '+ts+' '+(ta||''):''); }
+function rngShort(fs,fa,ts,ta){ if(!fs) return ''; return (ts&&ts!==fs) ? fs+' '+fa+' ← '+ts+' '+ta : fs+' '+fa+'–'+ta; }
+function lastLine(s){
+  if(s.recorded && !s.absent && (s.hf_s||s.rf_s))
+    return '<span class="lr">اليوم: '+(s.hf_s?'حفظ <b>'+esc(rngShort(s.hf_s,s.hf_a,s.ht_s,s.ht_a))+'</b>':'')+(s.rf_s?(s.hf_s?' · ':'')+'مراجعة <b>'+esc(rngShort(s.rf_s,s.rf_a,s.rt_s,s.rt_a))+'</b>':'')+'</span>';
+  var L=s.last; if(!L || !(L.hf||L.rf)) return '<span class="lr">لم يُسجَّل له تسميع سابق</span>';
+  return '<span class="lr">آخر تسميع ('+esc(String(L.label||'').split(' — ')[1]||L.label||'')+'): '+(L.hf?'حفظ <b>'+esc(L.hf)+'</b>':'')+(L.rf?(L.hf?' · ':'')+'مراجعة <b>'+esc(L.rf)+'</b>':'')+'</span>';
+}
+function filterList(){
+  var q=normAr((S.lq||'').trim()), n=0;
+  [].forEach.call(document.querySelectorAll('#app .student'),function(el){ var ok=!q || (el.getAttribute('data-q')||'').indexOf(q)>-1; el.style.display=ok?'':'none'; if(ok) n++; });
+  [].forEach.call(document.querySelectorAll('#app .secthead'),function(el){ el.style.display=q?'none':''; });
+  var c=$('lqn'); if(!c && q){ c=document.createElement('div'); c.id='lqn'; c.className='muted'; c.style.cssText='font-size:12.5px;margin:-4px 4px 8px'; var b=document.querySelector('.lsearch'); if(b) b.after(c); }
+  if(c) c.textContent=q?(n?n+' نتيجة':'لا نتيجة — جرّب جزءًا آخر من الاسم أو الرقم'):'';
 }
 
 function openStudent(i){
@@ -2800,7 +2827,30 @@ function rangeBlock(t,a,b,dis,btn){
        + '<div class="pair"><span>إلى</span>'+surahSelect(b+'_s',dis)+ayahSelect(b,dis)+'</div>'
        + (P?'<div class="pgprev">= '+f1(partsPages(P))+' وجه: '+esc(partsLabel(P))+'</div>':'')+'</div>';
 }
+function surahDir(){ try{ var s=S.data.students[S.cur], p=PL&&PL[s.mil]; return (p&&p.dir==='f')?'f':'b'; }catch(e){ return 'b'; } }
 function surahSelect(k,dis){
+  var v=S.f[k]||'', n=v?S.init.surahs.map(function(x){ return x.name; }).indexOf(v)+1:0;
+  return '<button type="button" class="spick"'+(dis?' disabled':'')+' onclick="pickSurah(\''+k+'\')"><span>'+(v?esc(v):'السورة')+'</span><small>'+(n?n+' ▾':'▾')+'</small></button>';
+}
+var SPK=null;
+function pickSurah(k){
+  SPK={k:k,q:''};
+  var dr=$('drawer'), dir=surahDir();
+  dr.innerHTML='<div class="dh"><b>اختر السورة</b><button onclick="closeProfile()">إغلاق</button></div><main>'
+    +'<div class="lsearch"><span>🔍</span><input type="search" id="sq" placeholder="اكتب اسم السورة أو رقمها" oninput="SPK.q=this.value;renderSurahList()"></div>'
+    +'<div class="muted" style="font-size:12px;margin:-2px 4px 8px">الترتيب: '+(dir==='f'?'من الفاتحة (بحسب خطة الطالب)':'من الناس صعودًا (يُغيَّر من خطة الطالب في الإدارة)')+'</div><div class="slist" id="slist"></div></main>';
+  dr.classList.add('open'); renderSurahList();
+  setTimeout(function(){ var e=$('slist') && document.querySelector('.slist .cur'); if(e) e.scrollIntoView({block:'center'}); },50);
+}
+function renderSurahList(){
+  var L=S.init.surahs.map(function(x,i){ return {n:i+1,name:x.name,ay:x.ayahs}; }), dir=surahDir();
+  if(dir!=='f') L.reverse();
+  var q=normAr((SPK.q||'').trim()), cur=S.f[SPK.k];
+  if(q) L=L.filter(function(x){ return normAr(x.name).indexOf(q)>-1 || String(x.n)===q; });
+  $('slist').innerHTML = L.length ? L.map(function(x){ return '<button class="'+(x.name===cur?'cur':'')+'" onclick="closeProfile();setSurah(\''+SPK.k+'\',\''+x.name.replace(/'/g,"\\'")+'\')"><span>'+esc(x.name)+'</span><small>'+x.n+' — '+x.ay+' آية</small></button>'; }).join('')
+                              : '<div class="empty">لا توجد سورة بهذا الاسم</div>';
+}
+function surahSelectNative(k,dis){
   var h='<select'+dis+' onchange="setSurah(\''+k+'\',this.value)"><option value="">السورة</option>';
   S.init.surahs.forEach(function(x){ h+='<option'+(x.name===S.f[k]?' selected':'')+'>'+esc(x.name)+'</option>'; });
   return h+'</select>';
@@ -3231,7 +3281,7 @@ function renderAdminList(){
     if(hn && s.halaqah!==hn) return;
     if(q && s.name.indexOf(q)<0 && s.mil.indexOf(q)<0) return;
     total++; if(shown>=150) return; shown++;
-    h+='<div class="arow"><div class="who"><b>'+esc(s.name)+'</b><small>'+esc(s.mil)+(s.srb?'، السرب: '+esc(s.srb):'')+'، '+esc(s.halaqah||'بلا حلقة')+'</small></div>'
+    h+='<div class="arow"><div class="who"><b class="lnk" title="فتح ملف الطالب" onclick="stdProfile(\''+esc(s.mil)+'\')">'+esc(s.name)+'</b><small>'+esc(s.mil)+(s.srb?'، السرب: '+esc(s.srb):'')+'، '+esc(s.halaqah||'بلا حلقة')+'</small></div>'
       +'<button class="ibtn" onclick="studentForm('+i+')">تعديل</button><button class="ibtn del" onclick="delStudent('+i+')">حذف</button></div>';
   });
   if(total>shown) h+='<div class="note info">يُعرض '+shown+' من '+total+' طالبًا — اختر حلقة أو اكتب في البحث لتضييق النتائج</div>';
