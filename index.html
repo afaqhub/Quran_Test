@@ -38,6 +38,8 @@
   main{padding:14px;max-width:760px;margin:0 auto 30px}
   body.hasact main{margin-bottom:96px}
   .narrow{max-width:560px;margin:0 auto}
+  .hdot{width:56px;height:36px;margin:22px auto 8px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  .hdot i{width:5px;height:5px;border-radius:50%;background:var(--line);opacity:.6;display:block}
 
   /* الرئيسية */
   .sectitle{font-weight:700;font-size:15px;color:var(--muted);margin:4px 2px 10px}
@@ -912,6 +914,7 @@ function sess(k,v){ try{ if(v===undefined) return sessionStorage.getItem(k); ses
 var NAV={ last:null, go:false, back:false, t:null };
 function app(h){
   var el=$('app'); el.innerHTML = h;
+  if(h.indexOf("A.tab='")>-1 && h.indexOf('class="tabs"')>-1) el.insertAdjacentHTML('beforeend','<div class="hdot" onclick="hdotTap()" aria-hidden="true"><i></i></div>');
   if(NAV.go){ el.classList.remove('pg-in','pg-back'); clearTimeout(NAV.t); }
   if(NAV.go && document.documentElement.getAttribute('data-motion')!=='off'){
     void el.offsetWidth; el.classList.add(NAV.back?'pg-back':'pg-in');
@@ -936,6 +939,45 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbyTtCd-Qiy8ITu3Mc9dNB_n84
 
 function apiKey(){ return mem('wa_key')||''; }
 function apiReady(){ return API_URL.indexOf('/exec')>-1; }
+/* ══ إخفاء الرقم العسكري والسرب — عرض فقط، دون أي تغيير في بيانات الطلاب ══ */
+var HIDEIDS=false, MILS={};
+function idCollect(o,d){
+  if(!o||typeof o!=='object'||d>7) return;
+  if(Array.isArray(o)){ for(var i=0;i<o.length;i++) idCollect(o[i],d+1); return; }
+  for(var k in o){ var v=o[k];
+    if((k==='mil'||k==='key') && v!=null && typeof v!=='object'){ var t=String(v).trim(); if(/^\d{5,12}$/.test(t)) MILS[t]=1; }
+    else if(v && typeof v==='object') idCollect(v,d+1); }
+}
+function idMask(t){ if(!HIDEIDS||!t) return t; return String(t).replace(/\d{5,12}/g,function(m){ return MILS[m]?'':m; }); }
+function idMaskHtml(h){
+  if(!HIDEIDS||!h) return h; h=idMask(h);
+  h=h.replace(/<(span|small|div|b|li|p)([^>]*)>\s*(?:الرقم العسكري|السرب|الرقم)\s*[^<]{0,40}<\/\1>/g,'');
+  h=h.replace(/placeholder="([^"]*?)\s*(?:أو|و)\s*(?:الرقم|رقمه)(?: العسكري)?"/g,'placeholder="$1"');
+  return h.replace(/بالاسم أو الرقم( العسكري)?/g,'بالاسم');
+}
+function idScrub(root){
+  if(!HIDEIDS||!root) return;
+  try{
+    var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null), n, a=[];
+    while((n=w.nextNode())) a.push(n);
+    a.forEach(function(t){ var v=t.nodeValue; if(!v) return; var nv=v.replace(/\d{5,12}/g,function(m){ return MILS[m]?'':m; }).replace(/بالاسم أو الرقم( العسكري)?/g,'بالاسم'); if(nv!==v) t.nodeValue=nv; });
+    if(root.querySelectorAll){
+      root.querySelectorAll('span,small,div,b,p,li').forEach(function(el){
+        if(el.children.length>2) return; var t=(el.textContent||'').trim();
+        if(t.length<46 && /^(الرقم العسكري|السرب)(\s|:|$)/.test(t)) el.remove();
+        else if(t==='الرقم'||t==='الرقم:'||t==='رقم') el.remove();
+      });
+      root.querySelectorAll('select').forEach(function(sl){ var o=sl.options&&sl.options[0]; if(o && /^كل الأسراب/.test(o.text)) sl.remove(); });
+      root.querySelectorAll('input,textarea').forEach(function(el){ var p=el.getAttribute('placeholder'); if(p && /(الرقم|رقمه)/.test(p)) el.setAttribute('placeholder',p.replace(/\s*(أو|و)\s*(الرقم|رقمه)( العسكري)?/g,'')); });
+    }
+  }catch(e){}
+}
+var IDOBS=null;
+function idInstall(){
+  if(IDOBS||!HIDEIDS) return; var busy=false;
+  IDOBS=new MutationObserver(function(){ if(busy) return; busy=true; try{ idScrub(document.body); } finally{ busy=false; } });
+  IDOBS.observe(document.body,{childList:true,subtree:true,characterData:true}); idScrub(document.body);
+}
 function apiCall(fn, args){
   return fetch(API_URL, {
     method:'POST', redirect:'follow',
@@ -947,16 +989,17 @@ function apiCall(fn, args){
   }).then(function(t){
     var j; try{ j=JSON.parse(t); }catch(e){ throw new Error('رد غير مفهوم من الخادم — تأكد أن النشر بخيار «أي شخص»'); }
     if(!j.ok) throw new Error(j.error||'خطأ غير معروف');
+    try{ idCollect(j.data,0); }catch(e){}
     return j.data;
   });
 }
-var READS={ waGetInit:1, waHome:1, waGetDay:1, waReports:1, waDailyAttendance:1, waStudentDirectory:1, waQuranData:1, waExamInit:1, waExamCoverage:1 };
+var READS={ waBoot:1, waGetInit:1, waHome:1, waGetDay:1, waReports:1, waDailyAttendance:1, waStudentDirectory:1, waQuranData:1, waExamInit:1, waExamCoverage:1 };
 var RSEQ=0, RPEND=0;
 function pbar(on){ var b=$('pbar'); if(b) b.classList.toggle('on',on); }
 /* عبارة التحميل بحسب العملية */
 function ldMsg(fn, args){
   var a=args||[];
-  var m={ waGetInit:'جارٍ تحميل المنصة…', waGetDay:'جارٍ فتح '+(a[0]||'الحلقة')+'…', waReports:'جارٍ إعداد التقارير…',
+  var m={ waBoot:'جارٍ تحميل المنصة…', waGetInit:'جارٍ تحميل المنصة…', waGetDay:'جارٍ فتح '+(a[0]||'الحلقة')+'…', waReports:'جارٍ إعداد التقارير…',
     waDailyAttendance:'جارٍ إعداد التمام اليومي…', waStudentDirectory:'جارٍ تحميل قائمة الطلاب…', waExamInit:'جارٍ تجهيز الاختبار…',
     waExamCoverage:'جارٍ تجهيز مقدار الاختبار…', waSave:'جارٍ حفظ التسميع…', waClear:'جارٍ مسح التسجيل…', waBulkAttendance:'جارٍ اعتماد التحضير…',
     waExamSave:'جارٍ حفظ درجة الاختبار…', waFocusAdd:'جارٍ رصد الموضع…', waFocusDone:'جارٍ التحديث…', waPlanSave:'جارٍ حفظ الخطة…', waPlanAmount:'جارٍ حفظ الخطة…',
@@ -973,7 +1016,18 @@ function call(fn, args, ok, fail){
   var isRead=!!READS[fn], bg=!!BG[fn], tok=isRead?++RSEQ:0;
   if(bg){ RPEND++; pbar(true); } else loading(true, ldMsg(fn,args));
   var done=function(){ delete INFLIGHT[key]; if(bg){ RPEND=Math.max(0,RPEND-1); if(!RPEND) pbar(false); } else loading(false); };
-  apiCall(fn, args).then(function(x){
+  var tries=0;
+  var attempt=function(){ return apiCall(fn, args).catch(function(e){
+    var m=(e && e.message) || String(e);
+    // ضغط مؤقت على خوادم Google (لم يُنفَّذ الطلب أصلًا): يُعاد تلقائيًا للقراءة والكتابة
+    var busy=/too many|simultaneous|Service invoked|Lock timeout|lock timed out|Rate Limit|Exceeded maximum|Service unavailable|\(5\d\d\)|\(429\)/i.test(m);
+    // انقطاع الشبكة: يُعاد للقراءة فقط (الكتابة قد تكون نُفّذت، فلا تُكرَّر)
+    var net=isRead && /Failed to fetch|NetworkError|Load failed|تعذّر الاتصال/i.test(m);
+    if((busy||net) && tries<3){ tries++; var sub=$('lds'); if(sub){ sub.textContent='الضغط مرتفع على الخادم… إعادة المحاولة تلقائيًا ('+tries+')'; sub.className='lds slow'; }
+      return new Promise(function(res){ setTimeout(res, 900*Math.pow(2,tries-1)+Math.random()*400); }).then(attempt); }
+    throw e;
+  }); };
+  attempt().then(function(x){
     done(); if(isRead && tok!==RSEQ) return; ok(x);
   }, function(e){
     done(); if(isRead && tok!==RSEQ) return;
@@ -1048,7 +1102,7 @@ function loadIdentity(){
   S.teacher = (t && S.init.teachers.indexOf(t)>-1) ? t : null;
   return S.teacher || skip;
 }
-function startApp(r){ S.init=r; if(loadIdentity()) showHome(); else showWho(); }
+function startApp(r){ S.init=r; HIDEIDS=!!r.hideIds; if(HIDEIDS) idInstall(); if(loadIdentity()) showHome(); else showWho(); }
 function showKey(msg){
   document.body.classList.remove('hasnav');
   header('نافذة التسميع','الدخول أول مرة',null); actions('');
@@ -1071,7 +1125,13 @@ function bootApp(){
   if(!apiReady()){ showKey('رابط الخادم غير مضبوط في الملف'); return; }
   if(!apiKey()){ showKey(''); return; }
   prefetchStatic();
-  call('waGetInit', [], startApp);
+  call('waBoot', [], function(r){
+    if(r && r.home){ HOME=r.home; HOMEt=Date.now(); }
+    startApp(r.init);
+  }, function(m){
+    if(m.indexOf('غير مسموحة')>-1) call('waGetInit', [], startApp);      // خادم أقدم: الطريقة السابقة
+    else toast(m,'err');
+  });
 }
 window.onload = bootApp;
 try{ if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(function(){}); }catch(e){}
@@ -2120,7 +2180,8 @@ var DKP={ cover:[['lr','الشعار الأيمن'],['ll','الشعار الأي
 var DKFONTS=['Cairo','Amiri','Tajawal','Almarai','IBM Plex Sans Arabic','Noto Kufi Arabic','Noto Naskh Arabic','El Messiri','Reem Kufi','Changa'];
 var DKBASE={ title:'تقرير منجزات حلقات القرآن الكريم', sub:'بمعهد الدراسات الفنية للقوات الجوية', by:'جناح الشؤون الدينية',
   to:'سعادة قائد معهد الدراسات الفنية للقوات الجوية', thanks:'نشكر سعادة قائد معهد الدراسات الفنية للقوات الجوية على دعمه المستمر ورعايته الكريمة لإقامة حلقات القرآن الكريم.',
-  fh:'Cairo', fb:'Cairo', topN:5, order:null, on:{}, hide:{}, custom:{}, edits:{}, lr:'', ll:'' };
+  fh:'Cairo', fb:'Cairo', topN:5, order:null, on:{}, hide:{}, custom:{}, edits:{}, lr:'', ll:'',
+  author:'أ. جهاد بن جمال حولدار', authorOn:true, dateOn:true, dateText:'', thide:{} };
 /* توقيع دقيق (ميكروبرنت) يظهر كخيط ذهبي رفيع، ويُقرأ بالتكبير في الملف أو بالعدسة على الورق */
 /* بصمة: «جهاد بن جمال» مرة واحدة بخط صغير، بأزرق قريب جدًا من خلفية صفحة الختام الداكنة، في زاويتها السفلى */
 var DKTN='<span class="tn" aria-hidden="true">جهاد بن جمال</span>';
@@ -2130,7 +2191,7 @@ function dkPinned(){ return (S.init && S.init.deckDef) || {}; }
 function dkLoad(){
   var loc={}; try{ loc=JSON.parse(localStorage.getItem('wa_deck')||'{}'); }catch(e){}
   var pin=JSON.parse(JSON.stringify(dkPinned())), d=Object.assign({},DKBASE,pin,loc);
-  ['on','hide','custom','edits'].forEach(function(k){ d[k]=Object.assign({},DKBASE[k],pin[k]||{},loc[k]||{}); });
+  ['on','hide','custom','edits','thide'].forEach(function(k){ d[k]=Object.assign({},DKBASE[k],pin[k]||{},loc[k]||{}); });
   d.order=loc.order||pin.order||null; dkNorm(d); return d;
 }
 function dkNorm(d){
@@ -2154,13 +2215,17 @@ function dkStyle(){ if(document.getElementById('dkcss')){ document.getElementByI
 function dkUiCSS(){ return '.dklogos{display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 8px}.dklogos>div{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:6px 10px}.dklogos img{width:46px;height:46px;object-fit:contain}.dklogos b{font-size:13px}'
   +'.dkbar{max-width:calc(1280px*var(--k,1));margin:4px auto 6px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px}.dkbar b{font-size:13.5px}.dkbar .sp{flex:1}.dkbar button{border:1px solid var(--line);background:var(--white);border-radius:9px;padding:4px 9px;font-size:13px;color:var(--ink)}'
   +'.dkparts{width:100%;display:flex;flex-wrap:wrap;gap:5px}.dkparts button{border-radius:14px;font-size:12px;padding:3px 9px}.dkparts button.off{opacity:.55;text-decoration:line-through}'
-  +'.dkoff{opacity:.35}.dkfsel{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dkfsel select{width:100%}'; }
+  +'.dkchk{display:flex;gap:8px;align-items:center;margin:2px 0 12px;font-size:14px}.dkoff{opacity:.35}.dkfsel{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dkfsel select{width:100%}'; }
 function showDeck(){ dkStyle();
   header('🖼️ العرض الجاهز','قالب معتمد يُعبّأ من بيانات المنصة ويُصدَّر PDF', function(){ showPres(); }); actions('');
   var W=presRange(), h='<div class="narrow" style="max-width:980px">', pin=dkPinned();
   h+='<div class="note info">الفترة والحلقات من شاشة «تقرير المنجزات» ('+hfmt(W[0],{day:'numeric',month:'long'})+' ← '+hfmt(W[1],{day:'numeric',month:'long',year:'numeric'})+'). <b>انقر أي نص في الشرائح لتعديله</b>، وأخفِ ما لا تريده من العناصر، وأضف شرائحك، ثم صدّر PDF.</div>';
   h+='<details class="block" style="padding:10px 14px"><summary style="cursor:pointer;font-weight:700">⚙️ بيانات العرض والخطوط والشعارات</summary><div style="margin-top:10px">'
     +[['title','العنوان'],['sub','العنوان الفرعي (اسم البرنامج أو الجهة المنفذة)'],['by','إعداد'],['to','مقدَّم إلى'],['thanks','نص الشكر في الختام']].map(function(f){ return '<div class="field"><label>'+f[1]+(pin[f[0]]?' <small class="muted">— مثبّت: '+esc(pin[f[0]]).slice(0,40)+'</small>':'')+'</label><input type="text" value="'+esc(DK[f[0]])+'" oninput="DK.'+f[0]+'=this.value;dkSave()" onchange="DK.edits={};dkSave();showDeck()"></div>'; }).join('')
+    +'<div class="field"><label>اسم مُعِدّ التقرير <small class="muted">(يظهر في الغلاف)</small></label><input type="text" value="'+esc(DK.author)+'" oninput="DK.author=this.value;dkSave()" onchange="dkCoverRefresh()"></div>'
+    +'<label class="dkchk"><input type="checkbox" style="width:auto"'+(DK.authorOn?' checked':'')+' onchange="DK.authorOn=this.checked;dkCoverRefresh()"> إظهار اسم المُعِدّ في الغلاف</label>'
+    +'<div class="field"><label>تاريخ التقرير <small class="muted">(اتركه فارغًا ليُكتب تاريخ اليوم تلقائيًا بالهجري)</small></label><input type="text" value="'+esc(DK.dateText)+'" placeholder="مثال: الأربعاء 5 جمادى الآخرة 1448هـ" oninput="DK.dateText=this.value;dkSave()" onchange="dkCoverRefresh()"></div>'
+    +'<label class="dkchk"><input type="checkbox" style="width:auto"'+(DK.dateOn?' checked':'')+' onchange="DK.dateOn=this.checked;dkCoverRefresh()"> إظهار تاريخ التقرير في الغلاف</label>'
     +'<div class="dkfsel"><div class="field"><label>خط العناوين</label><select onchange="DK.fh=this.value;dkSave();showDeck()">'+DKFONTS.map(function(f){ return '<option'+(DK.fh===f?' selected':'')+' style="font-family:\''+f+'\'">'+f+'</option>'; }).join('')+'</select></div>'
     +'<div class="field"><label>خط النصوص</label><select onchange="DK.fb=this.value;dkSave();showDeck()">'+DKFONTS.map(function(f){ return '<option'+(DK.fb===f?' selected':'')+' style="font-family:\''+f+'\'">'+f+'</option>'; }).join('')+'</select></div></div>'
     +'<div class="dklogos"><div><img src="'+esc(dkLogo('r'))+'" onerror="this.style.opacity=.25"><b>الشعار الأيمن</b><label class="ibtn">تغيير<input type="file" accept="image/*" style="display:none" onchange="dkSetLogo(\'r\',this)"></label>'+(DK.lr?'<button class="ibtn" onclick="DK.lr=\'\';dkSave();showDeck()">الافتراضي</button>':'')+'</div>'
@@ -2173,7 +2238,7 @@ function showDeck(){ dkStyle();
 }
 function dkPin(){
   var pw=sess('wa_pw'); if(!pw){ pw=prompt('كلمة مرور الإدارة لتثبيت الإعدادات للجميع:'); if(!pw) return; }
-  var o={}; ['title','sub','by','to','thanks','fh','fb','topN','order','on','hide','custom'].forEach(function(k){ o[k]=DK[k]; });
+  var o={}; ['title','sub','by','to','thanks','fh','fb','topN','order','on','hide','custom','author','authorOn','dateOn','dateText','thide'].forEach(function(k){ o[k]=DK[k]; });
   call('waAdminSetDeckDefaults',[pw,o],function(r){ S.init.deckDef=r; sess('wa_pw',pw); toast('📌 ثُبّتت الإعدادات افتراضيًا للجميع','ok'); showDeck(); });
 }
 function dkToPinned(){ if(!confirm('الرجوع إلى الإعدادات المثبّتة؟ تُلغى تعديلاتك المحلية في هذا الجهاز (عدا الشعارات).')) return; var lr=DK.lr, ll=DK.ll; localStorage.removeItem('wa_deck'); DK=dkLoad(); DK.lr=lr; DK.ll=ll; dkSave(); showDeck(); }
@@ -2182,6 +2247,10 @@ function dkSetLogo(side,inp){
   var rd=new FileReader(); rd.onload=function(){ var img=new Image(); img.onload=function(){ var c=document.createElement('canvas'), k=Math.min(1,600/Math.max(img.width,img.height)); c.width=img.width*k; c.height=img.height*k; c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     DK[side==='r'?'lr':'ll']=c.toDataURL('image/png'); dkSave(); showDeck(); }; img.src=rd.result; }; rd.readAsDataURL(f);
 }
+function dkCoverRefresh(){ delete DK.edits.cover; dkSave(); showDeck(); }
+function dkTeachers(D){ var all=(S.init.teachers||[]).slice(); (D?D.tList:[]).forEach(function(t){ if(all.indexOf(t)<0) all.push(t); }); return all; }
+function dkTch(t){ DK.thide[t]=!DK.thide[t]; if(!DK.thide[t]) delete DK.thide[t]; delete DK.edits.tch; delete DK.edits.summary; delete DK.edits.kpi; dkSave(); showDeck(); setTimeout(function(){ var e=document.querySelector('.dkbar[data-k="tch"]'); if(e) e.scrollIntoView({block:'center'}); },60); }
+function dkTchAll(on){ var a=dkTeachers(PR?presData(true):null); DK.thide={}; if(!on) a.forEach(function(t){ DK.thide[t]=true; }); delete DK.edits.tch; delete DK.edits.summary; delete DK.edits.kpi; dkSave(); showDeck(); setTimeout(function(){ var e=document.querySelector('.dkbar[data-k="tch"]'); if(e) e.scrollIntoView({block:'center'}); },60); }
 function dkReset(keep){ if(!keep && !confirm('إعادة توليد نصوص كل الشرائح من البيانات؟ ستُلغى تعديلاتك على نصوصها.')) return; DK.edits={}; dkSave(); showDeck(); }
 function dkFit(){ var w=document.getElementById('dkwrap'); if(!w) return; var k=Math.min(1,(w.clientWidth)/1280); w.style.setProperty('--k',k);
   [].forEach.call(w.querySelectorAll('.dkbox'),function(b){ b.style.height=(720*k)+'px'; }); }
@@ -2225,14 +2294,15 @@ function dkRender(forPrint){
   var cur='', P=function(id,html){ return (DK.hide[cur]&&DK.hide[cur][id])?'':html; };
   var S2=function(k,fn,cls){ cur=k; SL[k]={html:fn(),cls:cls||''}; };
   var hl=D.hsSel.map(function(n){ return 'حلقة '+n; }).join('، ');
+  var tAllN=dkTeachers(D), tShow=tAllN.filter(function(t){ return !DK.thide[t]; });
   S2('cover',function(){ return P('lr','<img class="lg cr" src="'+esc(dkLogo('r'))+'">')+P('ll','<img class="lg cl" src="'+esc(dkLogo('l'))+'">')
     +'<div class="ct"><h1'+CE+'>'+esc(DK.title)+'</h1>'+P('sub','<h3'+CE+'>'+esc(DK.sub)+'</h3>')+'</div>'
-    +P('meta','<div class="cf"><div'+CE+'>إعداد: '+esc(DK.by)+'<br>مقدَّم إلى: '+esc(DK.to)+'</div><div'+CE+'>الفترة: '+f(D.W[0])+' — '+f(D.W[1])+'<br>تاريخ الإعداد: '+todayH()+'</div></div>'); },'dark');
+    +P('meta','<div class="cf"><div'+CE+'>إعداد: '+esc(DK.by)+(DK.authorOn&&DK.author?'<br>المُعِدّ: '+esc(DK.author):'')+'<br>مقدَّم إلى: '+esc(DK.to)+'</div><div'+CE+'>الفترة: '+f(D.W[0])+' — '+f(D.W[1])+(DK.dateOn?'<br>تاريخ الإعداد: '+esc(DK.dateText||todayH()):'')+'</div></div>'); },'dark');
   S2('summary',function(){ var k3=[['k1','📖',f1(T.ph+T.pr)+' وجهًا','إجمالي الحفظ والمراجعة','g'],['k2','✅',pct(D.att),'نسبة الحضور العامة','gr'],['k3','👥',D.nSt,'طالبًا مستفيدًا','b']].map(function(k){ return P(k[0],'<div class="kc '+k[4]+'"><span class="ic">'+k[1]+'</span><div><b'+CE+'>'+k[2]+'</b><small'+CE+'>'+k[3]+'</small></div></div>'); }).join('');
-    return head('ملخص تنفيذي')+'<div class="two2'+(k3?'':' one')+'">'+P('lead','<p class="lead"'+CE+'>خلال الفترة، عُقدت <b>'+cnt(D.hsSel.length,'حلقة واحدة','حلقتان','حلقات','حلقة')+'</b> للقرآن الكريم ('+esc(hl)+') بمشاركة <b>'+D.nSt+' طالبًا</b> و<b>'+cnt(D.tList.length,'معلم واحد','معلمين','معلمين','معلمًا')+'</b> في <b>'+cnt(D.nDays,'يوم تسميع واحد','يومي تسميع','أيام تسميع','يوم تسميع')+'</b>. '
+    return head('ملخص تنفيذي')+'<div class="two2'+(k3?'':' one')+'">'+P('lead','<p class="lead"'+CE+'>خلال الفترة، عُقدت <b>'+cnt(D.hsSel.length,'حلقة واحدة','حلقتان','حلقات','حلقة')+'</b> للقرآن الكريم ('+esc(hl)+') بمشاركة <b>'+D.nSt+' طالبًا</b> و<b>'+cnt(tShow.length,'معلم واحد','معلمين','معلمين','معلمًا')+'</b> في <b>'+cnt(D.nDays,'يوم تسميع واحد','يومي تسميع','أيام تسميع','يوم تسميع')+'</b>. '
       +(D.ev.length?'وأثمرت الجهود عن <b>'+D.evS.length+' إتمامًا لسور كاملة</b>'+(D.evJ.length?' و<b>'+D.evJ.length+' إتمامًا لأجزاء كاملة</b>':'')+'، ':'')+(D.avg!=null?'بمتوسط درجات بلغ <b>'+f1(D.avg)+' من 10</b>.':'')+'</p>')
       +(k3?'<div class="kc3">'+k3+'</div>':'')+'</div>'; });
-  S2('kpi',function(){ return head('أرقام رئيسة')+'<div class="g9">'+[['n1',D.nSt,'الطلاب المشاركون'],['n2',D.tList.length,'المعلمون'],['n3',D.hsSel.length,'الحلقات'],['n4',D.nDays,'أيام التسميع'],['n5',fi(T.pres),'حصص التسميع المسجلة'],['n6',D.avg!=null?f1(D.avg)+' / 10':'—','متوسط الدرجات'],['n7',f1(T.ph)+' وجه','الحفظ الجديد'],['n8',f1(T.pr)+' وجه','المراجعة'],['n9',pct(D.att),'نسبة الحضور']]
+  S2('kpi',function(){ return head('أرقام رئيسة')+'<div class="g9">'+[['n1',D.nSt,'الطلاب المشاركون'],['n2',tShow.length,'المعلمون'],['n3',D.hsSel.length,'الحلقات'],['n4',D.nDays,'أيام التسميع'],['n5',fi(T.pres),'حصص التسميع المسجلة'],['n6',D.avg!=null?f1(D.avg)+' / 10':'—','متوسط الدرجات'],['n7',f1(T.ph)+' وجه','الحفظ الجديد'],['n8',f1(T.pr)+' وجه','المراجعة'],['n9',pct(D.att),'نسبة الحضور']]
       .map(function(k){ return P(k[0],'<div><b'+CE+'>'+k[1]+'</b><small'+CE+'>'+k[2]+'</small></div>'); }).join('')+'</div>'; });
   var mx=Math.max(T.ph,T.pr,1);
   S2('hifz',function(){ return head('الحفظ والمراجعة')+'<div class="hz">'+P('bars','<div class="bars"><div class="bar"><em'+CE+'>'+f1(T.ph)+' وجه</em><i class="gold" style="height:'+(T.ph/mx*300)+'px"></i><span>الحفظ الجديد<small>(≈ '+f1(T.ph/20)+' جزء)</small></span></div>'
@@ -2258,8 +2328,7 @@ function dkRender(forPrint){
       +(pathS?P('path','<div class="pth"><div class="pt2"'+CE+'>مسار الإنجاز للطالب '+esc(pathS.n)+'</div><div class="chain">'+pathS.l.slice(-8).map(function(x,i,a){ return '<span class="'+(i===a.length-1?'last':'')+'">'+esc(x)+'</span>'; }).join('')+'</div></div>'):''); });
   S2('top',function(){ var N=+DK.topN||5; return head('المتميزون والأوائل')+P('rank','<div class="rank n'+N+'">'+top.slice(0,N).map(function(a,i){ return '<div class="'+(i===0?'first':'')+'"><span class="n">'+(i+1)+'</span><b'+CE+'>'+esc(a.s.name)+' ('+esc(a.s.h)+')</b><span class="v"'+CE+'>'+f1(a.total)+' وجه (حفظ '+f1(a.ph)+'، مراجعة '+f1(a.pr)+')</span><span class="av"'+CE+'>متوسط: '+(a.avg!=null?f1(a.avg):'—')+'</span></div>'; }).join('')+'</div>')
       +P('tags','<div class="tags3"><span class="g"'+CE+'>متميزون في الدرجات (9 فأكثر): '+cnt2('star')+'</span><span class="b"'+CE+'>متسارعون في الحفظ: '+cnt2('fast')+'</span><span class="gr"'+CE+'>في تحسّن مستمر: '+cnt2('up')+'</span></div>'); });
-  var tmx=Math.max.apply(null,D.tList.map(function(t){ return D.tDays[t]; }).concat([1]));
-  S2('tch',function(){ return head('المعلمون')+'<div class="tch">'+D.tList.slice(0,9).map(function(t,i){ var n=D.tDays[t]; var seg=''; for(var k=0;k<tmx;k++) seg+='<i class="'+(k<n?(i===0?'on g':'on'):'')+'"></i>'; return '<div><span class="ic">👤</span><b'+CE+'>'+esc(t)+'</b><span'+CE+'>'+cnt(n,'يوم تدريس واحد','يوما تدريس','أيام تدريس','يوم تدريس')+'</span><div class="seg">'+seg+'</div></div>'; }).join('')+'</div>'; });
+  S2('tch',function(){ return head('المعلمون')+'<div class="tch tn'+Math.min(tShow.length,12)+'">'+tShow.slice(0,12).map(function(t){ return '<div><span class="ic">👤</span><b'+CE+'>'+esc(t)+'</b></div>'; }).join('')+'</div>'+(tShow.length?'':'<p class="lead"'+CE+'>[اختر المعلمين الظاهرين من شريط هذه الصفحة]</p>'); });
   if(D.CC){ var cm=D.CC.list.filter(function(a){ return D.sel(a.s.h)&&a.cm&&a.cm.ratio!=null; }), cc={a:0,b:0,c:0,d:0}; cm.forEach(function(a){ cc[a.cm.st.k]++; });
     S2('plan',function(){ return head('الالتزام بخطط الحفظ')+'<div class="sub2"'+CE+'>(يُقاس كل طالب بناءً على خطته الفردية المحددة مسبقًا)</div><div class="pl4">'
       +[['a','متقدمون على خطتهم','#1F7A45'],['b','ملتزمون','#14408F'],['c','متأخرون قليلًا','#D4A72C'],['d','متأخرون','#C2410C']].map(function(x){ var n=cc[x[0]], tt=cm.length||1; return P(x[0],'<div style="border-color:'+x[2]+'"><b style="color:'+x[2]+'"'+CE+'>'+x[1]+'</b><span'+CE+'>'+cnt(n,'طالب واحد','طالبان','طلاب','طالبًا')+'</span><i style="width:'+Math.round(n/tt*100)+'%;background:'+x[2]+'"></i></div>'); }).join('')+'</div>'; }); }
@@ -2294,6 +2363,7 @@ function dkRender(forPrint){
         +'<button onclick="dkMove(\''+k+'\',-1)" title="لأعلى">↑</button><button onclick="dkMove(\''+k+'\',1)" title="لأسفل">↓</button>'
         +(isC?'<button onclick="dkCustomEdit(\''+k.slice(2)+'\')">✏️ تعديل</button><button onclick="dkCustomDel(\''+k.slice(2)+'\')">🗑</button>':'')
         +'<button onclick="dkOn(\''+k+'\')">'+(on?'🙈 إخفاء الصفحة':'👁 إظهار الصفحة')+'</button>'
+        +(k==='tch'&&on?'<div class="dkparts" style="align-items:center"><button onclick="dkTchAll(true)">✓ كل المعلمين</button><button onclick="dkTchAll(false)">✕ لا أحد</button>'+tAllN.map(function(t){ var off=DK.thide[t]; return '<button class="'+(off?'off':'')+'" data-t="'+esc(t)+'" onclick="dkTch(this.getAttribute(\'data-t\'))">'+(off?'＋ ':'✓ ')+esc(t)+'</button>'; }).join('')+'</div>':'')
         +(k==='top'&&on?'<select onchange="DK.topN=+this.value;delete DK.edits.top;dkSave();showDeck()">'+[3,5,7,10].map(function(n){ return '<option value="'+n+'"'+((+DK.topN||5)===n?' selected':'')+'>أول '+n+'</option>'; }).join('')+'</select>':'')
         +(parts.length&&on?'<div class="dkparts">'+parts.map(function(p2){ var off=DK.hide[k]&&DK.hide[k][p2[0]]; return '<button class="'+(off?'off':'')+'" onclick="dkPart(\''+k+'\',\''+p2[0]+'\')">'+(off?'＋ ':'✓ ')+esc(p2[1])+'</button>'; }).join('')+'</div>':'')+'</div>');
     }
@@ -2339,7 +2409,7 @@ function dkCSS(){
    +'.slide .rank{display:flex;flex-direction:column;gap:14px}.slide .rank>div{display:flex;align-items:center;gap:20px;background:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 4px 12px rgba(0,0,0,.08);border:2px solid transparent}.slide .rank>div.first{border-color:#E0AE2B}'
    +'.slide .rank .n{background:#E0AE2B;color:#fff;border-radius:10px;width:54px;height:54px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900}.slide .rank b{flex:1;font-size:26px}.slide .rank .v{background:#14408F;color:#fff;border-radius:12px;padding:8px 18px;font-size:20px}.slide .rank .av{background:#E0AE2B;color:#13294B;border-radius:12px;padding:8px 16px;font-size:20px;font-weight:800}'
    +'.slide .tags3{display:flex;gap:20px;justify-content:center;margin-top:22px}.slide .tags3 span{border-radius:20px;padding:8px 20px;font-size:20px;font-weight:800;color:#fff}.slide .tags3 .g{background:#E0AE2B;color:#13294B}.slide .tags3 .b{background:#14408F}.slide .tags3 .gr{background:#1F7A45}'
-   +'.slide .tch{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.slide .tch>div{background:#fff;border-radius:8px;padding:18px 22px;box-shadow:0 6px 18px rgba(0,0,0,.12);text-align:center;position:relative}.slide .tch .ic{position:absolute;top:10px;right:14px;font-size:26px}.slide .tch b{display:block;font-size:30px;font-weight:900;margin:6px 0}.slide .tch span{font-size:24px;font-weight:700}'
+   +'.slide .tch{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.slide .tch>div{background:#fff;border-radius:8px;padding:18px 22px;box-shadow:0 6px 18px rgba(0,0,0,.12);text-align:center;position:relative}.slide .tch .ic{position:absolute;top:10px;right:14px;font-size:26px}.slide .tch b{display:block;font-size:28px;font-weight:900;margin:6px 0;line-height:1.5}.slide .tch>div{display:flex;align-items:center;justify-content:center;min-height:96px;padding-top:30px}.slide .tch.tn1,.slide .tch.tn2{grid-template-columns:repeat(2,1fr)}.slide .tch.tn1{grid-template-columns:minmax(0,520px);justify-content:center}.slide .tch span{font-size:24px;font-weight:700}'
    +'.slide .seg{display:flex;gap:4px;margin-top:12px}.slide .seg i{flex:1;height:26px;border:1.5px solid #13294B;border-radius:5px}.slide .seg i.on{background:#13294B}.slide .seg i.on.g{background:#E0AE2B;border-color:#E0AE2B}'
    +'.slide .sub2{font-size:21px;color:#6B7280;margin:-14px 0 26px}.slide .pl4{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}.slide .pl4>div{background:#fff;border:3px solid;border-radius:16px;padding:24px;position:relative;overflow:hidden}.slide .pl4 b{display:block;font-size:30px;font-weight:900}.slide .pl4 span{font-size:40px;font-weight:900}.slide .pl4 i{position:absolute;bottom:0;right:0;height:10px}'
    +'.slide .ins{display:flex;flex-direction:column;gap:12px}.slide .ins>div{display:flex;gap:18px;align-items:flex-start;background:#fff;border-radius:12px;padding:12px 18px;box-shadow:0 3px 10px rgba(0,0,0,.07)}.slide .ins span{font-size:32px}.slide .ins p{margin:0;font-size:22px;line-height:1.6}.slide .ins b{color:#C99A1E}'
@@ -2548,7 +2618,7 @@ function renderStd(){
   L.forEach(function(x){
     var m=esc(x.mil);
     h+='<div class="sdcard"><div class="t"><b>'+hl(x.name,q)+'</b><span class="tag ok">حلقة '+esc(x.h)+'</span></div>'
-      +'<div class="meta2"><span>الرقم العسكري '+(x.mil.indexOf(q)>-1&&q?'<mark>'+m+'</mark>':m)+'</span>'+(x.srb?'<span>السرب '+esc(x.srb)+'</span>':'')+(x.m?'<span>م '+x.m+'</span>':'')+(x.plan?planLvTag(x.plan):'')+'</div>'
+      +'<div class="meta2"><span>الرقم العسكري '+(x.mil.indexOf(q)>-1&&q?'<mark>'+m+'</mark>':m)+'</span>'+(x.srb&&!HIDEIDS?'<span>السرب '+esc(x.srb)+'</span>':'')+(x.m?'<span>م '+x.m+'</span>':'')+(x.plan?planLvTag(x.plan):'')+'</div>'
       +(x.start?'<small>'+esc(x.start)+'</small>':'')
       +(x.last?'<div class="lr2">آخر تسميع ('+esc(x.last.hj||'')+'): '+(x.last.hf?'حفظ <b>'+esc(x.last.hf)+'</b>':'')+(x.last.rf?(x.last.hf?' · ':'')+'مراجعة <b>'+esc(x.last.rf)+'</b>':'')+(x.last.g!==''&&x.last.g!=null?' · الدرجة <b>'+esc(String(x.last.g))+'</b>':'')+'</div>':'<div class="lr2">لم يُسجَّل له تسميع بعد</div>')
       +'<div class="sdact"><button onclick="stdProfile(\''+m+'\')">📄 الملف</button><button onclick="stdRecite(\''+m+'\')">✍️ تسميع</button>'
@@ -2605,7 +2675,7 @@ function todayH(){ try{ return hfmt(new Date(),{weekday:'long',day:'numeric',mon
 
 /* للطالب: بطاقة إنجاز */
 function studentText(a){
-  var L=['📗 إنجاز الطالب: '+a.s.name, 'حلقة '+a.s.h+(a.s.srb?' — السرب '+a.s.srb:''), ''];
+  var L=['📗 إنجاز الطالب: '+a.s.name, 'حلقة '+a.s.h+(a.s.srb&&!HIDEIDS?' — السرب '+a.s.srb:''), ''];
   L.push('الحفظ الجديد: '+f1(a.ph)+' وجه | المراجعة: '+f1(a.pr)+' وجه');
   L.push('متوسط الدرجات: '+(a.avg==null?'—':f1(a.avg))+' من 10 | الحضور: '+pct(a.att)+' ('+cnt(a.pres,'حصة واحدة','حصتان','حصص','حصة')+')');
   if(a.ach && a.ach.done.length){ var d=a.ach.done; L.push('أتمّ حفظ '+d.length+(d.length===1?' سورة: ':' سور: ')+d.slice(0,8).join('، ')+(d.length>8?' و'+(d.length-8)+' أخرى':'')); }
@@ -2729,7 +2799,7 @@ function showList(){ navSet('hal');
     else if(s.recorded) tag = '<span class="tag ok">مسجّل</span>';
     else tag = d.day.editable ? '<span class="tag wait">'+(s.present?'حاضر — ':'')+'بانتظار التسميع</span>' : '<span class="tag none">لم يُسجّل</span>';
     h += '<div class="student '+(s.absent?'st-a absrow':s.recorded?'st-d':'st-w')+'" data-q="'+esc(normAr(s.name)+' '+s.mil+' '+s.m)+'" onclick="openStudent('+i+')"><div class="n">'+esc(s.m)+'</div>'
-       + '<button class="pf" title="ملف الطالب" onclick="event.stopPropagation();stdProfile(\''+esc(s.mil)+'\')">📄</button><div class="who"><b>'+esc(s.name)+(s.star?' 🌟':'')+(s.fast?' 🚀':'')+(s.focus&&s.focus.length?' <span class="ftag">🎯'+s.focus.length+'</span>':'')+'</b><small>'+esc(s.mil)+'</small>'+lastLine(s)+(s.abs&&s.abs.alert?'<span class="absflag">غياب متكرر</span>':'')+'</div>'+tag+'</div>';
+       + '<button class="pf" title="ملف الطالب" onclick="event.stopPropagation();stdProfile(\''+esc(s.mil)+'\')">📄</button><div class="who"><b>'+esc(s.name)+(s.star?' 🌟':'')+(s.fast?' 🚀':'')+(s.focus&&s.focus.length?' <span class="ftag">🎯'+s.focus.length+'</span>':'')+'</b><small>'+(HIDEIDS?'':esc(s.mil))+'</small>'+lastLine(s)+(s.abs&&s.abs.alert?'<span class="absflag">غياب متكرر</span>':'')+'</div>'+tag+'</div>';
   });
   if(!d.students.length) h += '<div class="empty">لا يوجد طلاب في هذه الحلقة — أضفهم من صفحة الإدارة</div>';
   app(h+'</div>'); if(S.lq) filterList(); checkSessionDone();
@@ -3183,6 +3253,25 @@ function archiveHal(name,cnt){ if(!confirm('أرشفة حلقة '+name+'؟\n\n'+
 function restoreHal(sheet){ call('waAdminRestoreHalaqah',[A.pw,sheet],function(r){ afterHal(r,'استُعيدت الحلقة'); }); }
 
 /* ══ تبويب الأدوات ══ */
+var HDT={n:0,t:0};
+function hdotTap(){ var now=Date.now(); HDT.n=(now-HDT.t<1500)?HDT.n+1:1; HDT.t=now; if(HDT.n<3) return; HDT.n=0; openHideSheet(); }
+function openHideSheet(){
+  var dr=$('drawer');
+  dr.innerHTML='<div class="dh"><b>خيار خاص</b><button onclick="closeProfile()">إغلاق</button></div><main>'
+    +'<h3 style="margin:0 0 8px;color:var(--green)">🙈 إخفاء الرقم العسكري والسرب</h3>'
+    +'<div class="muted" style="font-size:13.5px;line-height:1.9;margin-bottom:10px">يخفيهما من كل شاشات المنصة وتقاريرها المطبوعة والمنسوخة، ويصبح نموذج إضافة الطالب بالاسم والحلقة فقط. <b>للعرض فقط</b>: لا يغيّر أي بيانات، ويمكن إرجاعه في أي وقت، ويسري على كل الأجهزة.</div>'
+    +'<div class="note info" style="margin-bottom:10px">الحالة الآن: '+(HIDEIDS?'<b>مخفيان</b>':'<b>ظاهران</b>')+'</div>'
+    +'<button class="primary" onclick="toggleHideIds()">'+(HIDEIDS?'👁 إظهار الرقم العسكري والسرب':'🙈 إخفاء الرقم العسكري والسرب')+'</button></main>';
+  dr.classList.add('open');
+}
+function toggleHideIds(){
+  var on=!HIDEIDS;
+  if(!confirm(on?'إخفاء الرقم العسكري والسرب من كل المنصة (عرض فقط)؟':'إظهار الرقم العسكري والسرب من جديد؟')) return;
+  call('waAdminSetHideIds',[A.pw,on],function(r){
+    S.init.hideIds=!!r; toast(r?'🙈 أُخفي الرقم العسكري والسرب من المنصة':'👁 عاد ظهورهما','ok');
+    setTimeout(function(){ location.reload(); },800);
+  });
+}
 function showToolsTab(h){
   if(!A.tools){ app(h+'<div class="empty">جارٍ التحميل…</div></div>'); actions(''); call('waAdminTools',[A.pw],function(r){ A.tools=r; showAdmin(); }); return; }
   var T=A.tools;
@@ -3253,7 +3342,7 @@ function showExamTab(h){
   A.exList=L;
   L.forEach(function(s,i){
     var r=E.byMil[s.mil], v=r&&r[ei]!=null?r[ei]:'';
-    h+='<div class="exrow"><div class="who"><b>'+esc(s.name)+'</b><small>'+esc(s.mil)+'</small></div>'
+    h+='<div class="exrow"><div class="who"><b>'+esc(s.name)+'</b><small>'+(HIDEIDS?'':esc(s.mil))+'</small></div>'
       +'<input type="number" inputmode="decimal" min="0" max="'+E.max+'" id="ex_'+i+'" value="'+v+'" data-o="'+v+'" placeholder="—"></div>';
   });
   if(!L.length) h+='<div class="empty">لا يوجد طلاب في هذه الحلقة</div>';
@@ -3281,7 +3370,7 @@ function renderAdminList(){
     if(hn && s.halaqah!==hn) return;
     if(q && s.name.indexOf(q)<0 && s.mil.indexOf(q)<0) return;
     total++; if(shown>=150) return; shown++;
-    h+='<div class="arow"><div class="who"><b class="lnk" title="فتح ملف الطالب" onclick="stdProfile(\''+esc(s.mil)+'\')">'+esc(s.name)+'</b><small>'+esc(s.mil)+(s.srb?'، السرب: '+esc(s.srb):'')+'، '+esc(s.halaqah||'بلا حلقة')+'</small></div>'
+    h+='<div class="arow"><div class="who"><b class="lnk" title="فتح ملف الطالب" onclick="stdProfile(\''+esc(s.mil)+'\')">'+esc(s.name)+'</b><small>'+(HIDEIDS?'':esc(s.mil))+(s.srb&&!HIDEIDS?'، السرب: '+esc(s.srb):'')+'، '+esc(s.halaqah||'بلا حلقة')+'</small></div>'
       +'<button class="ibtn" onclick="studentForm('+i+')">تعديل</button><button class="ibtn del" onclick="delStudent('+i+')">حذف</button></div>';
   });
   if(total>shown) h+='<div class="note info">يُعرض '+shown+' من '+total+' طالبًا — اختر حلقة أو اكتب في البحث لتضييق النتائج</div>';
@@ -3297,9 +3386,10 @@ function studentForm(i){ navSet('adm');
     opts+='<option value="'+esc(n)+'"'+(n===s.halaqah?' selected':'')+(full&&n!==s.halaqah?' disabled':'')+'>'+esc(n)+(n===s.halaqah&&ed?'':' (متبقي '+Math.max(0,sl.freeAtEnd)+')')+'</option>';
   });
   var h='<div class="narrow">'
-    +'<div class="field"><label>الرقم العسكري</label><input type="text" id="f_mil" inputmode="numeric" value="'+esc(s.mil)+'"'+(ed?' readonly':'')+'>'+(ed?'<small>الرقم لا يُعدَّل لأنه مفتاح سجلات الطالب</small>':'')+'</div>'
+    +(HIDEIDS?'<input type="hidden" id="f_mil" value="'+esc(s.mil)+'"><input type="hidden" id="f_srb" value="'+esc(s.srb)+'">'
+      :'<div class="field"><label>الرقم العسكري'+(ed?'':' <small class="muted">(اختياري)</small>')+'</label><input type="text" id="f_mil" inputmode="numeric" value="'+esc(s.mil)+'"'+(ed?' readonly':'')+(ed?'':' placeholder="اتركه فارغًا لإضافة الطالب بالاسم فقط"')+'>'+(ed?'<small>الرقم لا يُعدَّل لأنه مفتاح سجلات الطالب</small>':'')+'</div>')
     +'<div class="field"><label>اسم الطالب</label><input type="text" id="f_name" value="'+esc(s.name)+'"></div>'
-    +'<div class="field"><label>السرب</label><input type="text" id="f_srb" value="'+esc(s.srb)+'"></div>'
+    +(HIDEIDS?'':'<div class="field"><label>السرب'+(ed?'':' <small class="muted">(اختياري)</small>')+'</label><input type="text" id="f_srb" value="'+esc(s.srb)+'"></div>')
     +'<div class="field"><label>الحلقة</label><select id="f_h">'+opts+'</select>'+(ed?'<small>تغيير الحلقة ينقل الطالب إلى آخر قائمتها، ويبقى سجله السابق محفوظًا في حلقته القديمة</small>':'')+'</div>'
     +'<div class="field"><label>بداية الحفظ</label><input type="text" id="f_start" value="'+esc(s.start)+'" placeholder="مثال: يحفظ من الناس إلى النبأ"></div>';
   if(S.init.plans){
@@ -3307,6 +3397,7 @@ function studentForm(i){ navSet('adm');
     A.pf=pp?{s:pp.s,a:pp.a,dir:pp.dir,prior:pp.prior,amt:pp.amt}:{s:0,a:1,dir:'b',prior:true,amt:(S.init.planCfg||{}).def||0.5};
     h+='<div class="block" id="planf">'+planFields()+'</div>';
   }
+  if(!ed && HIDEIDS) h+='<div class="note info">يكفي اسم الطالب والحلقة؛ يُنشأ له معرّف داخلي تلقائيًا.</div>';
   if(!ed) h+='<div class="note info">يُضاف الطالب إلى بيانات الطلاب وإلى آخر قائمة حلقته تلقائيًا، ويظهر فورًا في كل أيام الحلقة غير المجمّدة.</div>';
   app(h+'</div>');
   actions(ed ? '<button class="save" onclick="saveStudent('+i+',false)">حفظ التعديل</button>'
@@ -3316,7 +3407,8 @@ function studentForm(i){ navSet('adm');
 function saveStudent(i,again){
   var ed=i>=0;
   var o={ mil:$('f_mil').value.trim(), name:$('f_name').value.trim(), srb:$('f_srb').value.trim(), halaqah:$('f_h').value, start:$('f_start').value.trim() };
-  if(!o.mil||!o.name){ toast('الرقم العسكري والاسم مطلوبان','err'); return; }
+  if(!o.name){ toast('اكتب اسم الطالب','err'); return; }
+  if(ed && !o.mil){ toast('تعذّر تحديد الطالب','err'); return; }
   if(!ed && !o.halaqah){ toast('اختر الحلقة','err'); return; }
   var keepH=o.halaqah;
   var pf=(S.init.plans && A.pf && A.pf.s)?{s:A.pf.s,a:A.pf.a,dir:A.pf.dir,prior:A.pf.prior,amt:A.pf.amt}:null;
@@ -3555,7 +3647,7 @@ function showReports(keep){ navSet('rep');
   /* البطل: الأوجه المحفوظة وشريط الأجزاء */
   var juz=C.T.ph/20;
   h+='<section class="hero"><div class="num" data-count>'+f1(C.T.ph)+'<span>وجهًا</span></div>'
-    +'<div class="cap">حفظها الطلاب '+periodLabel()+(F.h>=0?' في حلقة '+esc(R.hs[F.h]):'')+(F.srb?' — السرب '+esc(F.srb):'')+'</div><div class="juz">';
+    +'<div class="cap">حفظها الطلاب '+periodLabel()+(F.h>=0?' في حلقة '+esc(R.hs[F.h]):'')+(F.srb&&!HIDEIDS?' — السرب '+esc(F.srb):'')+'</div><div class="juz">';
   for(var j=0;j<30;j++){ var fill=Math.max(0,Math.min(1,juz-j)); h+='<i title="الجزء '+(j+1)+'"><b style="width:'+(fill*100)+'%"></b></i>'; }
   h+='</div><div class="foot">تعادل نحو '+f1(juz)+' جزء من ثلاثين، والمراجعة '+f1(C.T.pr)+' وجهًا</div></section>';
 
@@ -3655,7 +3747,7 @@ function showReports(keep){ navSet('rep');
   h+='<div class="panel" style="margin-top:14px"><div class="ph"><div><h3>لوحة التميز</h3><div class="sub">'+sDesc+'</div></div></div>'
     +'<div class="chips">'+['fast','star','up','reg'].map(function(k){ var n=C.list.filter(function(a){ return a.b.indexOf(k)>-1; }).length;
         return '<button class="chip'+(sb===k?' on':'')+'" onclick="setF(\'star\',\''+k+'\')">'+BADGE[k][0]+' '+BADGE[k][1]+' <small>'+n+'</small></button>'; }).join('')+'</div>';
-  h+= stL.length ? stL.slice(0,15).map(function(a){ return '<div class="srow" onclick="openProfile(\''+esc(a.s.mil)+'\')"><div class="who"><b>'+esc(a.s.name)+' '+icons(a)+'</b><small>حلقة '+esc(a.s.h)+(a.s.srb?'، السرب '+esc(a.s.srb):'')+'</small></div><div class="m">'+smet(a)+'</div></div>'; }).join('')
+  h+= stL.length ? stL.slice(0,15).map(function(a){ return '<div class="srow" onclick="openProfile(\''+esc(a.s.mil)+'\')"><div class="who"><b>'+esc(a.s.name)+' '+icons(a)+'</b><small>حلقة '+esc(a.s.h)+(a.s.srb&&!HIDEIDS?'، السرب '+esc(a.s.srb):'')+'</small></div><div class="m">'+smet(a)+'</div></div>'; }).join('')
       : '<div class="empty">لا يوجد طلاب في هذه الفئة خلال الفترة</div>';
   h+='</div>';
 
@@ -3721,7 +3813,7 @@ function showReports(keep){ navSet('rep');
   C.list.forEach(function(a){ var k=a.s.srb||'بلا سرب'; var x=SR[k]||(SR[k]={n:0,t:0,gs:0,gc:0,p:0,ab:0}); x.n++; x.t+=a.total; x.p+=a.pres; x.ab+=a.abs; a.gs.forEach(function(g){ x.gs+=g; x.gc++; }); });
   var si=Object.keys(SR).map(function(k){ var x=SR[k]; return { l:'السرب '+k, v:x.gc?x.gs/x.gc:0, vt:'متوسط '+(x.gc?f1(x.gs/x.gc):'—'), m:x.n+' طالب، '+f1(x.t)+' وجه، الحضور '+pct((x.p+x.ab)?x.p/(x.p+x.ab):null) }; })
     .sort(function(a,b){ return b.v-a.v; });
-  h+='<div class="panel" style="margin-top:14px"><h3>مقارنة الأسراب</h3><div class="sub" style="margin-bottom:10px">مرتبة حسب متوسط الدرجات</div>'+hbars(si,'#B8912A')+'</div>';
+  if(!HIDEIDS) h+='<div class="panel" style="margin-top:14px"><h3>مقارنة الأسراب</h3><div class="sub" style="margin-bottom:10px">مرتبة حسب متوسط الدرجات</div>'+hbars(si,'#B8912A')+'</div>';
 
   /* منصة الأوائل */
   var pm=F.podium, cand=C.list.filter(function(a){ return pm==='total' ? a.total>0 : a.pres>0; });
@@ -3747,7 +3839,7 @@ function showReports(keep){ navSet('rep');
     +'<div class="sub" style="margin-bottom:6px">من غاب '+AC.total+' مرات فأكثر، أو '+AC.streak+' مرات متتالية في آخر حصصه — '+periodLabel()+'</div>';
   h+= ab.length ? ab.map(function(a){
       var last=a.ses.slice(-6).map(function(r){ return '<i class="'+(r.ab?'':'p')+'"></i>'; }).join('');
-      return '<div class="alert" onclick="openProfile(\''+esc(a.s.mil)+'\')"><div class="who"><b>'+esc(a.s.name)+'</b> <span class="muted" style="font-size:13px">'+esc(a.s.h)+(a.s.srb?'، السرب '+esc(a.s.srb):'')+'</span>'
+      return '<div class="alert" onclick="openProfile(\''+esc(a.s.mil)+'\')"><div class="who"><b>'+esc(a.s.name)+'</b> <span class="muted" style="font-size:13px">'+esc(a.s.h)+(a.s.srb&&!HIDEIDS?'، السرب '+esc(a.s.srb):'')+'</span>'
         +'<div class="why"><span>غاب '+a.abs+(a.abs===1?' مرة':' مرات')+'</span>'+(a.streak>=2?'<span>'+a.streak+' متتالية الآن</span>':'')+'<span style="background:var(--paper);color:var(--muted)">الحضور '+pct(a.att)+'</span></div></div>'
         +'<div title="آخر الحصص: الأحمر غياب"><span class="streak">'+last+'</span></div></div>';
     }).join('') : '<div class="empty">لا يوجد غياب متكرر في هذه الفترة</div>';
@@ -3797,14 +3889,14 @@ function renderTable(){
             ex:function(a){return a.exAvg==null?-1:a.exAvg;}, cm:function(a){return a.cm&&a.cm.ratio!=null?a.cm.ratio:-1;} }[F.sort];
   L.sort(function(a,b){ var x=key(a), y=key(b); return (typeof x==='string' ? x.localeCompare(y,'ar',{numeric:true}) : x-y)*F.dir; });
   var maxT=Math.max.apply(null,C.list.map(function(a){return a.total;}).concat([0.0001]));
-  var cols=[['#',null],['الطالب','name'],['الحلقة','h'],['السرب','srb'],['حفظ','ph'],['مراجعة','pr'],['الإجمالي','total'],['المتوسط','avg'],['الحضور','att'],['المستوى','lv']];
+  var cols=[['#',null],['الطالب','name'],['الحلقة','h']].concat(HIDEIDS?[]:[['السرب','srb']]).concat([['حفظ','ph'],['مراجعة','pr'],['الإجمالي','total'],['المتوسط','avg'],['الحضور','att'],['المستوى','lv']]);
   if(R.raw.exams) cols.push(['الاختبارات','ex']);
   if(Q) cols.push(['الخطة','cm']);
   var h='<table><thead><tr>'+cols.map(function(c){
     return '<th'+(c[1]?' onclick="sortBy(\''+c[1]+'\')"':'')+(F.sort===c[1]?' class="on"':'')+'>'+c[0]+(F.sort===c[1]?(F.dir<0?' ▼':' ▲'):'')+'</th>';
   }).join('')+'</tr></thead><tbody>';
   L.forEach(function(a,i){
-    h+='<tr class="row" onclick="openProfile(\''+esc(a.s.mil)+'\')"><td class="muted">'+(i+1)+'</td><td><b>'+esc(a.s.name)+'</b> '+icons(a)+'</td><td>'+esc(a.s.h)+'</td><td>'+esc(a.s.srb)+'</td>'
+    h+='<tr class="row" onclick="openProfile(\''+esc(a.s.mil)+'\')"><td class="muted">'+(i+1)+'</td><td><b>'+esc(a.s.name)+'</b> '+icons(a)+'</td><td>'+esc(a.s.h)+'</td>'+(HIDEIDS?'':'<td>'+esc(a.s.srb)+'</td>')+'\n'
       +'<td>'+f1(a.ph)+'</td><td>'+f1(a.pr)+'</td><td><span class="mini"><i style="width:'+(a.total/maxT*100)+'%"></i></span>'+f1(a.total)+'</td>'
       +'<td>'+(a.avg==null?'—':f1(a.avg))+'</td><td>'+pct(a.att)+'</td><td><span class="lv '+a.lv.c+'">'+a.lv.t+'</span></td>'
       +(R.raw.exams?'<td>'+(a.exAvg==null?'—':f1(a.exAvg))+'</td>':'')+(Q?'<td>'+(a.cm&&a.cm.ratio!=null?cstTag(a.cm):'—')+'</td>':'')+'</tr>';
@@ -3820,8 +3912,8 @@ function openProfile(mil){
   var pres=a.ses.filter(function(r){ return !r.ab; });
   var lastH=null; for(var i=pres.length-1;i>=0;i--) if(pres[i].hf){ lastH=pres[i]; break; }
   var h='<div class="dh"><b>ملف الطالب</b><button onclick="printCert()">شهادة</button><button onclick="printProfile()">طباعة</button><button onclick="closeProfile()">إغلاق</button></div><main>';
-  h+='<div class="pcard"><div class="nm">'+esc(a.s.name)+'</div><div class="meta2"><span>الرقم '+esc(a.s.mil)+'</span><span>حلقة '+esc(a.s.h)+'</span>'
-    +(a.s.srb?'<span>السرب '+esc(a.s.srb)+'</span>':'')+'<span class="lv '+a.lv.c+'">'+a.lv.t+'</span></div>'
+  h+='<div class="pcard"><div class="nm">'+esc(a.s.name)+'</div><div class="meta2">'+(HIDEIDS?'':'<span>الرقم '+esc(a.s.mil)+'</span>')+'<span>حلقة '+esc(a.s.h)+'</span>'
+    +(a.s.srb&&!HIDEIDS?'<span>السرب '+esc(a.s.srb)+'</span>':'')+'<span class="lv '+a.lv.c+'">'+a.lv.t+'</span></div>'
     +(a.s.start?'<div class="muted" style="margin-top:10px;font-size:14px">بداية الحفظ: '+esc(a.s.start)+'</div>':'')
     +(lastH?'<div style="margin-top:6px;font-size:15px">آخر موضع حفظ: <b>'+esc(lastH.hf)+'</b></div>':'')
     +(a.b.length?'<div style="margin-top:8px">'+badges(a)+'</div>':'')+'</div>';
@@ -4041,7 +4133,7 @@ function tmCounts(){
   TM.d.halaqat.forEach(function(h){ h.students.forEach(function(s){ c[s.st]++; c.n++; }); });
   return c;
 }
-function tmLine(s,i){ return (i+1)+'- '+s.name+' | '+s.mil+' | السرب: '+(s.srb||''); }
+function tmLine(s,i){ return (i+1)+'- '+s.name+(HIDEIDS?'':' | '+s.mil+' | السرب: '+(s.srb||'')); }
 function tmText(){
   var D=tmDate(), c=tmCounts(), f=TM.f, L=[];
   L.push('التمام اليومي');
@@ -4086,10 +4178,10 @@ function showTamam(){ navSet('tam');
     h+='<div class="tmh"><div class="hd"><b>حلقة '+esc(x.h)+'</b><span class="tag ok">حاضر '+p.length+'</span><span class="tag abs">غائب '+a.length+'</span>'+(u.length?'<span class="tag wait">لم يُحضَّر '+u.length+'</span>':'')+'</div>'
       +(x.teacher?'<div class="muted" style="font-size:13px;margin-bottom:4px">المعلم: '+esc(x.teacher)+'</div>':'');
     if(u.length && x.editable) h+='<button class="linkb" onclick="tmGoAttend(\''+esc(x.sheet)+'\','+x.dayIdx+')">✅ تحضير هذه الحلقة الآن</button>';
-    a.forEach(function(s,i){ h+='<div class="tmn"><span class="i">'+(i+1)+'</span><div class="w"><b style="color:var(--red)">'+esc(s.name)+'</b> <small>'+esc(s.mil)+(s.srb?' — السرب '+esc(s.srb):'')+'</small>'
+    a.forEach(function(s,i){ h+='<div class="tmn"><span class="i">'+(i+1)+'</span><div class="w"><b style="color:var(--red)">'+esc(s.name)+'</b> <small>'+(HIDEIDS?'':esc(s.mil))+(s.srb&&!HIDEIDS?' — السرب '+esc(s.srb):'')+'</small>'
       +(s.absBefore?' <span class="ftag">⚠️ غاب '+s.absBefore+(s.absBefore===1?' مرة':' مرات')+' قبلها</span>':'')+'</div></div>'; });
     if(p.length) h+='<details style="margin-top:6px"><summary class="muted" style="font-size:14px;cursor:pointer">أسماء الحاضرين ('+p.length+')</summary>'
-      + p.map(function(s,i){ return '<div class="tmn"><span class="i">'+(i+1)+'</span><div class="w">'+esc(s.name)+' <small>'+esc(s.mil)+(s.srb?' — السرب '+esc(s.srb):'')+'</small></div></div>'; }).join('')+'</details>';
+      + p.map(function(s,i){ return '<div class="tmn"><span class="i">'+(i+1)+'</span><div class="w">'+esc(s.name)+' <small>'+(HIDEIDS?'':esc(s.mil))+(s.srb&&!HIDEIDS?' — السرب '+esc(s.srb):'')+'</small></div></div>'; }).join('')+'</details>';
     h+='</div>';
   });
   app(h+'</div>'); window.scrollTo(0,0);
@@ -4113,8 +4205,8 @@ function tmPDF(){
     secs.forEach(function(sc){
       var L=g.students.filter(function(s){ return s.st===sc[0]; }); if(!L.length) return;
       h+='<div class="sub" style="margin:8px 0 4px;font-weight:700;color:'+(sc[0]==='a'?'#B3261E':'#14532D')+'">'+sc[1]+' ('+L.length+')</div>'
-        +'<table class="ptab" style="min-width:0"><tr><th>م</th><th>الاسم</th><th>الرقم العسكري</th><th>السرب</th></tr>'
-        +L.map(function(s,i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td><td>'+esc(s.mil)+'</td><td>'+esc(s.srb||'')+'</td></tr>'; }).join('')+'</table>';
+        +'<table class="ptab" style="min-width:0"><tr><th>م</th><th>الاسم</th>'+(HIDEIDS?'':'<th>الرقم العسكري</th><th>السرب</th>')+'</tr>'
+        +L.map(function(s,i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(s.name)+'</td>'+(HIDEIDS?'':'<td>'+esc(s.mil)+'</td><td>'+esc(s.srb||'')+'</td>')+'</tr>'; }).join('')+'</table>';
     });
     h+='</div>';
   });
@@ -4279,6 +4371,7 @@ function versesHTML(a,b,cap){
 
 /* ══ الطباعة: في نافذة مستقلة (الطباعة من داخل النافذة المضمّنة تخرج صفحة بيضاء في الجوال) ══ */
 function printHTML(title, body){
+  if(HIDEIDS) body=idMaskHtml(body);
   var css=document.querySelector('style').outerHTML;
   var fonts='<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Amiri+Quran&display=swap" rel="stylesheet">';
   var extra='<style>body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}main{max-width:900px;margin:0 auto;padding:14px}'
@@ -4430,7 +4523,7 @@ function examPick(){ navSet('exm');
   d.students.forEach(function(s,i){
     if(s.halaqah!==hs[X.h]) return;
     var sc=d.byMil[s.mil], done=sc?sc.filter(function(v){ return v!=null; }).length:0;
-    h+='<div class="student" onclick="examSetup('+i+')"><div class="who"><b>'+esc(s.name)+'</b><small>'+esc(s.mil)+'</small></div>'
+    h+='<div class="student" onclick="examSetup('+i+')"><div class="who"><b>'+esc(s.name)+'</b><small>'+(HIDEIDS?'':esc(s.mil))+'</small></div>'
       +(done?'<span class="tag ok">'+done+(done===1?' اختبار':' اختبارات')+'</span>':'<span class="tag none">لم يُختبر</span>')+'</div>';
   });
   if(!hs.length) h+='<div class="empty">لا يوجد طلاب بعد</div>';
