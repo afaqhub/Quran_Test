@@ -1509,7 +1509,7 @@ function quickSave(i, grade){
 
 /* ══════════ 📡 الواجهة الحية ══════════ */
 var LV={ on:false, live:null, prev:{}, feed:[], panels:[], idx:0, t:null, poll:null, anim:null, clk:null, paused:false };
-var LVN={ medals:'محطات البرنامج', live:'البث المباشر', last:'آخر حصة في دقيقة', film:'فيلم الدورة', mushaf:'المصحف الحي', pulse:'نبض الحلقة', future:'استشراف' };
+var LVN={ medals:'محطات البرنامج', live:'البث المباشر', last:'آخر حصة في دقيقة', film:'فيلم الدورة', mushaf:'إنجاز المصحف', pulse:'نبض الحلقة', future:'استشراف' };
 function openLive(start){ LV.start=start||null; return openLive0(); }
 function openLive0(){
   ensureRep(function(){ ensureQ(function(){
@@ -1631,7 +1631,7 @@ function lvMedals(){
 function lvMushaf(){
   var cnt={}, N=Math.max(1,R.C.list.length), names=0;
   R.C.list.forEach(function(a){ if(a.ach) a.ach.done.forEach(function(n){ cnt[n]=(cnt[n]||0)+1; }); });
-  var h='<div class="pt">المصحف الحي</div><div class="ps">سور القرآن الكريم بترتيبها، يشتد لون كل سورة بقدر عدد الطلاب الذين أتمّوا حفظها — المس سورة لمعرفة التفاصيل</div><div class="mg">';
+  var h='<div class="pt">إنجاز المصحف</div><div class="ps">سور القرآن الكريم بترتيبها، يشتد لون كل سورة بقدر عدد الطلاب الذين أتمّوا حفظها — المس سورة لمعرفة التفاصيل</div><div class="mg">';
   for(var k=1;k<=114;k++){ var n=sname(k), c=cnt[n]||0, r=c/N; if(c) names++;
     h+='<span style="background:'+(c?'rgba(201,162,58,'+(0.18+0.82*r).toFixed(2)+')':'rgba(255,255,255,.04)')+'" onclick="toast(\'سورة '+esc(n)+': '+(c?'أتمّ حفظها '+c+' طالبًا':'لم يُتمّها أحد بعد')+'\',\'ok\')">'+esc(n)+(c?'<em>'+c+'</em>':'')+'</span>'; }
   return h+'</div><div class="ps" style="margin-top:12px;text-align:center">أتمّ طلابنا حفظ <b style="color:#F0D27A">'+names+'</b> سورة مختلفة من سور القرآن الكريم</div>';
