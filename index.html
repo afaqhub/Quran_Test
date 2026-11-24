@@ -3523,8 +3523,10 @@ function showDaysTab(h){
   var cur=D.sources.filter(function(x){ return x.id===src; })[0];
   h+='<div class="note info">'+(src==='shared'?'جدول الدورة المشترك للحلقات: '+esc((cur&&cur.halaqat||[]).join('، ')):'جدول خاص بحلقة '+esc(cur?cur.halaqat[0]:''))+' — '+vis.length+' يومًا.</div>';
   h+='<div class="toolgrid" style="margin-bottom:12px"><button onclick="addDays(0)">＋ إضافة أسبوع<small>تُحسب التواريخ تلقائيًا بعد آخر حصة</small></button><button onclick="addDays(1)">＋ إضافة يوم<small>يوم واحد في آخر الجدول</small></button>'
-    +'<button onclick="SC=SC?null:{wds:detectWds(A.days.days),from:A.days.today};showAdmin()" style="grid-column:1/-1">🗓 تغيير أيام الحلقة<small>للأيام التي لم تُعقد بعد، مع معاينة قبل التطبيق</small></button></div>';
+    +'<button onclick="AD=null;SC=SC?null:{wds:detectWds(A.days.days),from:A.days.today};showAdmin()" style="grid-column:1/-1">🗓 تغيير أيام الحلقة<small>للأيام التي لم تُعقد بعد، مع معاينة قبل التطبيق</small></button></div>';
   if(SC) h+=schedPanel();
+  if(AD) h+=addPanel();
+  var dup=dupList(D); if(dup.length) h+='<div class="note warn">⚠️ يوجد '+dup.length+' يوم مكرر (نفس تاريخ يوم آخر وبلا أي تسجيل): اليوم '+dup.join('، اليوم ')+'.<div class="tbtns" style="margin-top:8px"><button onclick="dupClean()">🧹 حذف المكرر وإبقاء يوم واحد لكل تاريخ</button></div></div>';
   if(sus.length) h+='<div class="note warn">⚠️ '+sus.map(function(x){ return 'اليوم '+x.n; }).join('، ')+(sus.length===1?' مرّ':' مرّت')+' دون أي تسجيل. إن كان ملغى فحدّده، فلا يُحتسب في الخطط ولا التمام ولا التقارير.<br><small>والنظام لا يحسبه في الخطط أصلًا ما دام بلا تسجيل، لكن تحديده ملغى أوضح للجميع.</small></div>';
   var locked=vis.filter(function(x){ return lateable(x,D); }), opened=vis.filter(function(x){ return x.unlocked; });
   h+='<div class="block" style="padding:12px 14px"><h2 style="font-size:15px">🔓 الرصد المتأخر</h2>'
@@ -3586,12 +3588,54 @@ function applySched(){
   var items=aff.map(function(x,i){ var it=dItem(dates[i]); it.n=x.n; return it; });
   call('waAdminSetDates',[A.pw, D.src, items],function(r){ A.days=r; SC=null; toast('تم تحديث '+items.length+' يومًا','ok'); showAdmin(); });
 }
+var AD=null;
+function adHave(D){ var h={}; D.days.filter(function(x){ return x.date && !x.removed; }).forEach(function(x){ h[x.date]=1; }); return h; }
+function adDefWds(D){ var f={}; D.days.filter(function(x){ return x.date && !x.removed && x.rec>0; }).forEach(function(x){ var k=pd(x.date).getDay(); f[k]=(f[k]||0)+1; });
+  var mx=Math.max.apply(null,Object.keys(f).map(function(k){ return f[k]; }).concat([0])), w={}; Object.keys(f).forEach(function(k){ if(f[k]>=2 && f[k]>=mx*0.3) w[k]=1; });
+  return Object.keys(w).length?w:detectWds(D.days); }
 function addDays(one){
-  var D=A.days, w=detectWds(D.days), ds=D.days.filter(function(x){ return x.date && !x.removed; }).map(function(x){ return x.date; }).sort();
+  var D=A.days, ds=D.days.filter(function(x){ return x.date && !x.removed; }).map(function(x){ return x.date; }).sort();
   var start=ds.length?pd(ds[ds.length-1]):pd(D.today); start.setDate(start.getDate()+1);
-  var dates=genDates(start, w, one?1:Object.keys(w).length);
-  if(!confirm('إضافة '+dates.length+(dates.length===1?' يوم':' أيام')+' في آخر الجدول:\n'+dates.map(function(d){ return wdName(d)+' '+hijriStr(d)+' — '+iso(d).replace(/-/g,'/'); }).join('\n')+'\n\nتُبنى أيامها في أوراق الحلقات تلقائيًا.')) return;
-  call('waAdminAddDays',[A.pw, D.src, dates.map(dItem)],function(r){ A.days=r; toast('تمت الإضافة','ok'); showAdmin(); });
+  var w=adDefWds(D); AD={one:!!one,wds:w,from:iso(start),n:one?1:Math.max(1,Object.keys(w).length)}; SC=null; showAdmin();
+}
+function adToggle(k){ if(AD.wds[k]) delete AD.wds[k]; else AD.wds[k]=1; showAdmin(); }
+function adDates(){ var from=AD.from?pd(AD.from):null; return (from&&Object.keys(AD.wds).length)?genDates(from,AD.wds,AD.n):[]; }
+function addPanel(){
+  var D=A.days, have=adHave(D), dates=adDates(), fresh=dates.filter(function(d){ return !have[iso(d)]; });
+  var h='<div class="cpanel"><b>'+(AD.one?'＋ إضافة يوم':'＋ إضافة أيام')+' في آخر الجدول</b>'
+    +'<div class="muted" style="font-size:13px;margin-top:4px">اختر أيام الأسبوع التي تُعقد فيها الحلقة، وتاريخ البداية، وعدد الأيام. المعروض أدناه هو ما سيُضاف فعلًا، والتاريخ الموجود أصلًا لا يُضاف مرة ثانية.</div>'
+    +wdsPicker(AD.wds,'adToggle')
+    +'<div class="frow"><div class="field"><label>ابتداءً من</label><input type="date" value="'+AD.from+'" onchange="AD.from=this.value;showAdmin()"></div>'
+    +'<div class="field"><label>عدد الأيام</label><input type="number" inputmode="numeric" min="1" max="30" value="'+AD.n+'" onchange="AD.n=Math.max(1,Math.min(30,+this.value||1));showAdmin()"></div></div>';
+  if(!dates.length) h+='<div class="muted">اختر يومًا واحدًا على الأقل من أيام الأسبوع.</div>';
+  else h+='<div class="prevlist">'+dates.map(function(d){ var ex=have[iso(d)]; return '<div'+(ex?' style="opacity:.55"':'')+'><b>'+wdName(d)+' '+hijriStr(d)+' — '+iso(d).replace(/-/g,'/')+'</b>'+(ex?' <span class="muted">⚠️ موجود في الجدول — سيُتجاهل</span>':'')+'</div>'; }).join('')+'</div>';
+  h+='<div class="stepper" style="margin-top:8px"><button onclick="AD=null;showAdmin()">تراجع</button><button style="background:var(--green);color:#fff;border-color:var(--green);font-weight:700"'+(fresh.length?'':' disabled')+' onclick="adSave()">إضافة '+fresh.length+(fresh.length===1?' يوم':' أيام')+'</button></div></div>';
+  return h;
+}
+function adSave(){
+  var have=adHave(A.days), items=adDates().filter(function(d){ return !have[iso(d)]; }).map(dItem); if(!items.length) return;
+  call('waAdminAddDays',[A.pw, A.days.src, items],function(r){
+    A.days=r; AD=null;
+    var got={}; r.days.filter(function(x){ return x.date && !x.removed; }).forEach(function(x){ got[x.date]=1; });
+    var miss=items.filter(function(i){ return !got[i.date]; });
+    if(miss.length){ alert('تنبيه: أُضيفت الأيام لكن لم تظهر تواريخها في قائمة الأيام ('+miss.map(function(i){ return i.date; }).join('، ')+').\nلا تكرر الإضافة، وأرسل لي لقطة لهذه الشاشة.'); }
+    else toast('أُضيف '+items.length+(items.length===1?' يوم':' أيام')+(r.skipped?' (تجاهل '+r.skipped+' مكرر)':''),'ok');
+    showAdmin(); });
+}
+/* الأيام المكررة (نفس التاريخ): يُبقى الذي فيه تسجيل، وإلا الأصغر رقمًا، ويُحذف الباقي إن كان فارغًا */
+function dupList(D){
+  var g={}; D.days.filter(function(x){ return x.date && !x.removed; }).forEach(function(x){ (g[x.date]=g[x.date]||[]).push(x); });
+  var del=[]; Object.keys(g).forEach(function(k){ var a=g[k]; if(a.length<2) return; a.sort(function(x,y){ return (y.rec-x.rec) || (x.n-y.n); });
+    a.slice(1).forEach(function(x){ if(x.rec===0 && !x.frozen) del.push(x.n); }); });
+  return del.sort(function(a,b){ return a-b; });
+}
+function dupClean(){
+  var del=dupList(A.days); if(!del.length) return;
+  if(!confirm('سيُحذف (حذفًا ناعمًا يمكن استعادته) '+del.length+' يوم مكرر: اليوم '+del.join('، اليوم ')+'.\nيُبقى من كل تاريخ يوم واحد (الذي فيه تسجيل، وإلا الأصغر رقمًا).\n\nمتابعة؟')) return;
+  var i=0; (function next(){
+    if(i>=del.length){ toast('حُذفت الأيام المكررة','ok'); showAdmin(); return; }
+    var n=del[i++]; call('waAdminRemoveDay',[A.pw, n, A.days.src, 'مكرر'],function(r){ A.days=r; next(); }, function(m){ toast('تعذّر حذف اليوم '+n+': '+m,'err'); showAdmin(); });
+  })();
 }
 function saveDayDate(){
   if(!ED.date){ toast('اختر التاريخ','err'); return; }
